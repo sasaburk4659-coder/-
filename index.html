@@ -3,312 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Engine API</title>
+    <title>Game Engine Server</title>
 </head>
 <body>
     <script>
-        // ============ ИГРОВОЙ ДВИЖОК - СЕРВЕРНАЯ ЧАСТЬ ============
-        // Не содержит UI, только API для подключения игр
+        // ============ ИГРОВОЙ ДВИЖОК - СЕРВЕР ============
         
-        // Состояние сервера
         let serverActive = true;
-        let players = {};
+        let players = new Map();
         let messages = [];
         let connectedGames = new Set();
         
-        // Секретный ключ для управления (как у нейросети)
-        const ENGINE_KEY = "AI_ENGINE_7x9k2m4n8p1q_2024_SECURE_KEY";
+        const ENGINE_KEY = "AI_ENGINE_7x9k2m4n8p1q_SECURE_2024";
+        let eventListeners = new Map();
+        const SESSION_ID = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
-        // Хранилище событий
-        let eventListeners = {};
+        console.log('═══════════════════════════════════════════════════');
+        console.log('🎮 GAME ENGINE SERVER v3.0');
+        console.log(`🔑 KEY: ${ENGINE_KEY}`);
+        console.log(`📡 STATUS: ${serverActive ? '🟢 ONLINE' : '🔴 OFFLINE'}`);
+        console.log('═══════════════════════════════════════════════════');
         
-        // ============ API ДЛЯ ИГР ============
         window.GameEngine = {
-            // Получить статус сервера
-            getStatus() {
-                return { 
-                    active: serverActive, 
-                    players: Object.keys(players).length,
-                    timestamp: Date.now()
-                };
+            ping() {
+                return { status: serverActive ? 'online' : 'offline', session: SESSION_ID, timestamp: Date.now() };
             },
             
-            // Подключить игрока
+            getStatus() {
+                return { active: serverActive, players: players.size, session: SESSION_ID };
+            },
+            
             connect(playerData) {
-                if (!serverActive) return { error: 'SERVER_STOPPED', message: 'Сервер остановлен' };
+                console.log('📡 Подключение:', playerData);
                 
-                const playerId = playerData.id || ('player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+                if (!serverActive) {
+                    return { success: false, error: 'SERVER_STOPPED', message: 'Сервер остановлен' };
+                }
+                
+                const playerId = playerData.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+                
                 const player = {
                     id: playerId,
-                    name: playerData.name || 'Игрок',
+                    name: playerData.name.substring(0, 20),
                     position: playerData.position || { x: 0, y: 0, z: 0 },
                     rotation: playerData.rotation || { y: 0 },
+                    color: playerData.color || this.getRandomColor(),
                     connectedAt: Date.now(),
                     lastUpdate: Date.now()
                 };
                 
-                players[playerId] = player;
-                
-                // Отправляем всем подключенным играм о новом игроке
+                players.set(playerId, player);
                 this.broadcast('player_joined', player);
                 
-                console.log(`✅ Игрок подключен: ${player.name} (${playerId})`);
+                console.log(`✅ Игрок: ${player.name} | Всего: ${players.size}`);
                 
                 return {
                     success: true,
                     playerId: playerId,
                     players: this.getAllPlayers(),
-                    chatHistory: messages.slice(-50)
+                    chatHistory: messages.slice(-100),
+                    serverStatus: serverActive
                 };
             },
             
-            // Отключить игрока
             disconnect(playerId) {
-                if (players[playerId]) {
-                    const player = players[playerId];
-                    delete players[playerId];
+                if (players.has(playerId)) {
+                    const player = players.get(playerId);
+                    players.delete(playerId);
                     this.broadcast('player_left', player);
-                    console.log(`❌ Игрок отключен: ${player.name}`);
                     return { success: true };
                 }
-                return { error: 'PLAYER_NOT_FOUND' };
+                return { success: false };
             },
             
-            // Обновить позицию игрока
-            updatePosition(playerId, position, rotation) {
+            updatePosition(playerId, position, rotation, animationState) {
                 if (!serverActive) return { error: 'SERVER_STOPPED' };
-                
-                if (players[playerId]) {
-                    players[playerId].position = position;
-                    if (rotation) players[playerId].rotation = rotation;
-                    players[playerId].lastUpdate = Date.now();
+                if (players.has(playerId)) {
+                    const player = players.get(playerId);
+                    player.position = position;
+                    if (rotation) player.rotation = rotation;
+                    if (animationState) player.animationState = animationState;
+                    player.lastUpdate = Date.now();
                     
                     this.broadcast('position_update', {
-                        playerId: playerId,
-                        position: position,
-                        rotation: rotation
+                        playerId, position, rotation, animationState,
+                        playerName: player.name
                     });
-                    
                     return { success: true };
                 }
                 return { error: 'PLAYER_NOT_FOUND' };
             },
             
-            // Отправить сообщение в чат
             sendMessage(playerId, text) {
                 if (!serverActive) return { error: 'SERVER_STOPPED' };
+                if (!players.has(playerId)) return { error: 'PLAYER_NOT_FOUND' };
                 
-                const player = players[playerId];
-                if (player && text && text.trim()) {
-                    const message = {
-                        id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                        playerId: playerId,
-                        playerName: player.name,
-                        text: text.trim().substring(0, 200),
-                        timestamp: Date.now()
-                    };
-                    
-                    messages.push(message);
-                    
-                    // Храним только последние 500 сообщений
-                    if (messages.length > 500) messages = messages.shift();
-                    
-                    this.broadcast('new_message', message);
-                    console.log(`💬 ${player.name}: ${message.text}`);
-                    
-                    return { success: true, message: message };
-                }
-                return { error: 'INVALID_MESSAGE' };
+                const player = players.get(playerId);
+                const message = {
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    playerId, playerName: player.name, text: text.trim().substring(0, 200),
+                    timestamp: Date.now(), color: player.color
+                };
+                
+                messages.push(message);
+                if (messages.length > 500) messages.shift();
+                this.broadcast('new_message', message);
+                return { success: true };
             },
             
-            // Получить всех игроков
             getAllPlayers() {
-                return Object.values(players);
+                return Array.from(players.values());
             },
             
-            // Получить историю чата
             getChatHistory(limit = 100) {
                 return messages.slice(-limit);
             },
             
-            // Получить конкретного игрока
-            getPlayer(playerId) {
-                return players[playerId] || null;
+            getRandomColor() {
+                const colors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4'];
+                return colors[Math.floor(Math.random() * colors.length)];
             },
             
-            // Проверка жив ли игрок
-            isPlayerOnline(playerId) {
-                return !!players[playerId];
-            },
-            
-            // Broadcast события
             broadcast(event, data) {
-                if (eventListeners[event]) {
-                    eventListeners[event].forEach(callback => {
-                        try {
-                            callback(data);
-                        } catch(e) {
-                            console.error('Ошибка в обработчике события:', e);
-                        }
-                    });
+                if (eventListeners.has(event)) {
+                    eventListeners.get(event).forEach(cb => { try { cb(data); } catch(e) {} });
                 }
             },
             
-            // Подписка на события
             on(event, callback) {
-                if (!eventListeners[event]) eventListeners[event] = [];
-                eventListeners[event].push(callback);
+                if (!eventListeners.has(event)) eventListeners.set(event, []);
+                eventListeners.get(event).push(callback);
                 return () => {
-                    const index = eventListeners[event].indexOf(callback);
-                    if (index > -1) eventListeners[event].splice(index, 1);
+                    const list = eventListeners.get(event);
+                    if (list) { const i = list.indexOf(callback); if (i > -1) list.splice(i, 1); }
                 };
             },
             
-            // Регистрация игры (для отслеживания подключений)
             registerGame(gameId) {
                 connectedGames.add(gameId);
-                return { success: true, gameId: gameId };
-            },
-            
-            // Отмена регистрации игры
-            unregisterGame(gameId) {
-                connectedGames.delete(gameId);
+                return { success: true };
             }
         };
         
-        // ============ API ДЛЯ PYTHON СКРИПТА (УПРАВЛЕНИЕ) ============
         window.ServerControl = {
-            // Остановить сервер
             stop(key) {
-                if (key !== ENGINE_KEY) return { error: 'INVALID_KEY', message: 'Неверный ключ доступа' };
-                
-                if (!serverActive) return { error: 'ALREADY_STOPPED', message: 'Сервер уже остановлен' };
-                
+                if (key !== ENGINE_KEY) return { success: false };
                 serverActive = false;
-                
-                // Оповещаем все подключенные игры
-                window.GameEngine.broadcast('server_stopped', {
-                    message: 'Сервер остановлен администратором',
-                    timestamp: Date.now()
-                });
-                
-                console.log('🛑 СЕРВЕР ОСТАНОВЛЕН');
-                
-                return {
-                    success: true,
-                    message: 'Сервер успешно остановлен',
-                    timestamp: Date.now()
-                };
+                window.GameEngine.broadcast('server_stopped', { message: 'Сервер остановлен' });
+                return { success: true };
             },
-            
-            // Запустить сервер
             start(key) {
-                if (key !== ENGINE_KEY) return { error: 'INVALID_KEY', message: 'Неверный ключ доступа' };
-                
-                if (serverActive) return { error: 'ALREADY_RUNNING', message: 'Сервер уже запущен' };
-                
+                if (key !== ENGINE_KEY) return { success: false };
                 serverActive = true;
-                
-                // Оповещаем все подключенные игры
-                window.GameEngine.broadcast('server_started', {
-                    message: 'Сервер запущен',
-                    timestamp: Date.now()
-                });
-                
-                console.log('🟢 СЕРВЕР ЗАПУЩЕН');
-                
-                return {
-                    success: true,
-                    message: 'Сервер успешно запущен',
-                    timestamp: Date.now()
-                };
+                window.GameEngine.broadcast('server_started', { message: 'Сервер запущен' });
+                return { success: true };
             },
-            
-            // Получить полную статистику
             getStats(key) {
-                if (key !== ENGINE_KEY) return { error: 'INVALID_KEY' };
-                
+                if (key !== ENGINE_KEY) return { success: false };
                 return {
-                    active: serverActive,
-                    playersCount: Object.keys(players).length,
-                    players: Object.values(players).map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        position: p.position,
-                        lastUpdate: p.lastUpdate
-                    })),
-                    messagesCount: messages.length,
-                    messages: messages.slice(-20),
-                    connectedGames: Array.from(connectedGames),
-                    uptime: Date.now() - (window._startTime || Date.now()),
-                    timestamp: Date.now()
+                    success: true, active: serverActive, playersCount: players.size,
+                    players: Array.from(players.values()),
+                    messagesCount: messages.length
                 };
-            },
-            
-            // Очистить историю чата
-            clearChat(key) {
-                if (key !== ENGINE_KEY) return { error: 'INVALID_KEY' };
-                
-                messages = [];
-                window.GameEngine.broadcast('chat_cleared', { message: 'История чата очищена' });
-                
-                return { success: true, message: 'Чат очищен' };
-            },
-            
-            // Кикнуть игрока
-            kickPlayer(key, playerId, reason = '') {
-                if (key !== ENGINE_KEY) return { error: 'INVALID_KEY' };
-                
-                if (players[playerId]) {
-                    const player = players[playerId];
-                    delete players[playerId];
-                    
-                    window.GameEngine.broadcast('player_kicked', {
-                        playerId: playerId,
-                        playerName: player.name,
-                        reason: reason
-                    });
-                    
-                    return { success: true, message: `Игрок ${player.name} кикнут` };
-                }
-                
-                return { error: 'PLAYER_NOT_FOUND' };
             }
         };
         
-        // Автоматическая очистка неактивных игроков (каждые 30 секунд)
         setInterval(() => {
             if (!serverActive) return;
-            
             const now = Date.now();
-            const inactiveTimeout = 60000; // 1 минута бездействия
-            
-            Object.keys(players).forEach(playerId => {
-                const player = players[playerId];
-                if (now - player.lastUpdate > inactiveTimeout) {
-                    console.log(`⏰ Игрок ${player.name} отключен по таймауту`);
-                    delete players[playerId];
+            for (const [id, player] of players) {
+                if (now - player.lastUpdate > 60000) {
+                    players.delete(id);
                     window.GameEngine.broadcast('player_left', player);
                 }
-            });
+            }
         }, 30000);
         
-        // Сохраняем время запуска
-        window._startTime = Date.now();
-        
-        // Экспортируем ключ для Python скрипта (доступен через window)
-        window.ENGINE_KEY = ENGINE_KEY;
-        
-        console.log('═══════════════════════════════════════');
-        console.log('🎮 GAME ENGINE SERVER v2.0');
-        console.log('═══════════════════════════════════════');
-        console.log(`🔑 КЛЮЧ УПРАВЛЕНИЯ: ${ENGINE_KEY}`);
-        console.log(`📡 СТАТУС: ${serverActive ? '🟢 РАБОТАЕТ' : '🔴 ОСТАНОВЛЕН'}`);
-        console.log(`🌐 URL: ${window.location.href}`);
-        console.log('═══════════════════════════════════════');
-        console.log('✅ API готов к подключению игр');
-        console.log('💡 Для управления используйте ServerControl API');
-        console.log('═══════════════════════════════════════');
+        console.log('✅ Движок готов');
     </script>
 </body>
 </html>
