@@ -2,772 +2,105 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termux Manager | Remote Control System</title>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Текст от бота</title>
     <style>
-        * {
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
             margin: 0;
-            padding: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             box-sizing: border-box;
         }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #f1f5f9;
-            min-height: 100vh;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .glass {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-radius: 32px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(90deg, #6366f1, #a855f7);
-            border: none;
-            padding: 12px 28px;
-            border-radius: 40px;
-            font-weight: 600;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
-        }
-
-        .input-field {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            border-radius: 40px;
-            padding: 12px 20px;
-            color: white;
-            width: 100%;
-            outline: none;
-            transition: all 0.3s;
-        }
-
-        .input-field:focus {
-            border-color: #a855f7;
-            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
-        }
-
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(12px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            animation: fadeIn 0.3s;
-        }
-
-        .modal-content {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            border-radius: 32px;
-            padding: 32px;
-            max-width: 500px;
-            width: 90%;
-            border: 1px solid rgba(168, 85, 247, 0.5);
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #10b981;
-            padding: 12px 24px;
-            border-radius: 40px;
-            z-index: 1100;
-            animation: slideIn 0.3s;
-            font-weight: 500;
-        }
-
-        .toast.error {
-            background: #ef4444;
-        }
-
-        .env-panel {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 380px;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            transform: translateX(-100%);
-            transition: transform 0.3s;
-            z-index: 200;
+        .card {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
             padding: 24px;
-            border-right: 2px solid rgba(99, 102, 241, 0.5);
-            overflow-y: auto;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
         }
-
-        .env-panel.open {
-            transform: translateX(0);
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 16px 0;
+            color: #1f2a3e;
         }
-
-        .env-card {
-            background: rgba(30, 41, 59, 0.8);
+        .text-display {
+            background: #f8f9fc;
             border-radius: 20px;
-            padding: 16px;
-            margin-bottom: 12px;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-            cursor: pointer;
+            padding: 20px;
+            min-height: 120px;
+            font-size: 1.2rem;
+            line-height: 1.4;
+            word-break: break-word;
+            white-space: pre-wrap;
+            color: #0a2540;
+            border: 1px solid #e6edf4;
         }
-
-        .env-card:hover {
-            border-color: #a855f7;
-            transform: translateX(5px);
+        .status {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #5c6f87;
         }
-
-        .menu-btn {
-            position: fixed;
-            left: 20px;
-            top: 20px;
-            font-size: 28px;
-            background: rgba(99, 102, 241, 0.3);
-            width: 50px;
-            height: 50px;
-            border-radius: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 150;
-            transition: all 0.3s;
-        }
-
-        .menu-btn:hover {
-            background: rgba(99, 102, 241, 0.6);
-            transform: scale(1.05);
-        }
-
-        .avatar {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #6366f1, #ec489a);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-
-        .avatar:hover {
-            transform: scale(1.05);
-        }
-
-        .dropdown {
-            position: absolute;
-            top: 70px;
-            right: 20px;
-            background: #1e293b;
-            border-radius: 20px;
-            padding: 8px 0;
-            min-width: 200px;
-            z-index: 100;
-            border: 1px solid #475569;
-            display: none;
-        }
-
-        .dropdown a {
-            display: block;
-            padding: 12px 20px;
-            color: #e2e8f0;
+        .refresh-btn {
+            margin-top: 16px;
+            background: #0088cc;
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: background 0.2s;
         }
-
-        .dropdown a:hover {
-            background: #334155;
-        }
-
-        .key-box {
-            background: #0f172a;
-            border-radius: 12px;
-            padding: 12px;
-            font-family: monospace;
-            font-size: 11px;
-            word-break: break-all;
-            border: 1px solid #a855f7;
-        }
-
-        .warning {
-            color: #f59e0b;
-            font-size: 12px;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .status-online {
-            background: #10b981;
-            box-shadow: 0 0 5px #10b981;
-        }
-
-        .status-offline {
-            background: #ef4444;
+        .refresh-btn:hover {
+            background: #006699;
         }
     </style>
 </head>
 <body>
-
-<div id="app"></div>
+<div class="card">
+    <h1>📩 Последнее сообщение от бота</h1>
+    <div class="text-display" id="messageText">
+        Загрузка...
+    </div>
+    <button class="refresh-btn" onclick="fetchText()">⟳ Обновить</button>
+    <div class="status" id="status"></div>
+</div>
 
 <script>
-    // ========== EMAILJS КОНФИГУРАЦИЯ (ТВОИ КЛЮЧИ) ==========
-    const EMAILJS_PUBLIC_KEY = "rC1jYHC1dSd3eLxPi";     // Твой Public Key
-    const EMAILJS_SERVICE_ID = "service_cua59ky";       // Твой Service ID
-    const EMAILJS_TEMPLATE_ID = "template_your_id";     // ⚠️ НУЖНО СОЗДАТЬ ШАБЛОН!
-    
-    // Инициализация EmailJS
-    emailjs.init(EMAILJS_PUBLIC_KEY);
-    
-    // ========== ХРАНИЛИЩЕ (localStorage) ==========
-    const DB = {
-        getUsers: () => JSON.parse(localStorage.getItem('termux_users') || '[]'),
-        setUsers: (users) => localStorage.setItem('termux_users', JSON.stringify(users)),
-        getEnvs: () => JSON.parse(localStorage.getItem('termux_envs') || '[]'),
-        setEnvs: (envs) => localStorage.setItem('termux_envs', JSON.stringify(envs)),
-        getSessions: () => JSON.parse(localStorage.getItem('termux_sessions') || '[]'),
-        setSessions: (sessions) => localStorage.setItem('termux_sessions', JSON.stringify(sessions)),
-        getCommands: () => JSON.parse(localStorage.getItem('termux_commands') || '[]'),
-        setCommands: (cmds) => localStorage.setItem('termux_commands', JSON.stringify(cmds))
-    };
-    
-    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-    function showToast(msg, isError = false) {
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        if (isError) toast.classList.add('error');
-        toast.innerText = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
-    
-    function generateApiKey() {
-        const prefixes = ['sk_live', 'sk_test', 'termux_key', 'remote_key'];
-        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-        let randomStr = '';
-        for (let i = 0; i < 32; i++) {
-            randomStr += chars[Math.floor(Math.random() * chars.length)];
-        }
-        const timestamp = Date.now().toString(36).toUpperCase();
-        const formatted = randomStr.match(/.{1,8}/g).join('-');
-        return `tmux_${prefix}_${formatted}_${timestamp}`;
-    }
-    
-    function getIP() {
-        return fetch('https://api.ipify.org?format=json')
-            .then(res => res.json())
-            .then(data => data.ip)
-            .catch(() => 'unknown');
-    }
-    
-    // Отправка реального email через EmailJS
-    async function sendVerificationEmail(email, code, username) {
+    // 🔁 ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА ВАШ РЕАЛЬНЫЙ API (Flask-сервер)
+    const API_URL = 'https://ваш-адрес.ngrok.io/get_text';   // <-- поменять!
+
+    async function fetchText() {
+        const textDiv = document.getElementById('messageText');
+        const statusSpan = document.getElementById('status');
+        textDiv.innerText = 'Загрузка...';
+        statusSpan.innerText = '';
+
         try {
-            const templateParams = {
-                to_email: email,
-                to_name: username,
-                verification_code: code,
-                message: `Ваш код подтверждения: ${code}`,
-                subject: 'Подтверждение регистрации - Termux Manager'
-            };
-            
-            const response = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
-            console.log('Email sent:', response);
-            showToast(`✅ Код отправлен на ${email}`);
-            return true;
-        } catch(error) {
-            console.error('Email error:', error);
-            // Показываем код в alert для тестирования
-            alert(`📧 [DEMO] Код подтверждения: ${code}\nДолжен прийти на ${email}\n\nЕсли EmailJS не настроен, создай шаблон в EmailJS!`);
-            showToast(`⚠️ Демо-режим: код ${code}`, false);
-            return true;
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            textDiv.innerText = data.text || '(пусто)';
+            statusSpan.innerText = '✅ Обновлено: ' + new Date().toLocaleTimeString();
+        } catch (err) {
+            console.error(err);
+            textDiv.innerText = '⚠️ Не удалось загрузить текст';
+            statusSpan.innerText = 'Ошибка соединения с сервером';
         }
     }
-    
-    // ========== АВТОРИЗАЦИЯ ==========
-    let currentUser = null;
-    let environments = [];
-    
-    async function init() {
-        const token = localStorage.getItem('session_token');
-        if (token) {
-            const sessions = DB.getSessions();
-            const session = sessions.find(s => s.token === token);
-            if (session) {
-                const users = DB.getUsers();
-                currentUser = users.find(u => u.id === session.userId);
-                if (currentUser) {
-                    loadUserEnvs();
-                    renderDashboard();
-                    return;
-                }
-            }
-        }
-        renderAuth();
-    }
-    
-    function loadUserEnvs() {
-        const allEnvs = DB.getEnvs();
-        environments = allEnvs.filter(e => e.userId === currentUser.id);
-    }
-    
-    function renderAuth() {
-        document.getElementById('app').innerHTML = `
-            <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
-                <div class="glass" style="border-radius: 32px; padding: 40px; max-width: 450px; width: 100%;">
-                    <h1 style="font-size: 32px; margin-bottom: 8px; background: linear-gradient(135deg, #6366f1, #ec489a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Termux Manager</h1>
-                    <p style="margin-bottom: 32px; color: #94a3b8;">Remote Control System</p>
-                    
-                    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                        <button onclick="switchAuth('login')" id="loginTab" style="flex:1; padding: 10px; border-bottom: 2px solid #a855f7; background: none; color: white; cursor: pointer;">Вход</button>
-                        <button onclick="switchAuth('register')" id="registerTab" style="flex:1; padding: 10px; color: #64748b; background: none; cursor: pointer;">Регистрация</button>
-                    </div>
-                    
-                    <div id="authForm"></div>
-                </div>
-            </div>
-        `;
-        switchAuth('login');
-    }
-    
-    window.switchAuth = function(type) {
-        const loginTab = document.getElementById('loginTab');
-        const registerTab = document.getElementById('registerTab');
-        const formContainer = document.getElementById('authForm');
-        
-        if (type === 'login') {
-            loginTab.style.borderBottom = '2px solid #a855f7';
-            loginTab.style.color = 'white';
-            registerTab.style.borderBottom = 'none';
-            registerTab.style.color = '#64748b';
-            formContainer.innerHTML = `
-                <input type="email" id="loginEmail" class="input-field" placeholder="Email" style="margin-bottom: 16px;">
-                <input type="password" id="loginPassword" class="input-field" placeholder="Пароль" style="margin-bottom: 24px;">
-                <button class="btn-primary" style="width: 100%;" onclick="handleLogin()">Войти</button>
-            `;
-        } else {
-            registerTab.style.borderBottom = '2px solid #a855f7';
-            registerTab.style.color = 'white';
-            loginTab.style.borderBottom = 'none';
-            loginTab.style.color = '#64748b';
-            formContainer.innerHTML = `
-                <input type="text" id="regUsername" class="input-field" placeholder="Username" style="margin-bottom: 16px;">
-                <input type="email" id="regEmail" class="input-field" placeholder="Email" style="margin-bottom: 16px;">
-                <input type="password" id="regPassword" class="input-field" placeholder="Пароль" style="margin-bottom: 24px;">
-                <button class="btn-primary" style="width: 100%;" onclick="handleRegister()">Зарегистрироваться</button>
-            `;
-        }
-    };
-    
-    window.handleLogin = async function() {
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        const users = DB.getUsers();
-        const user = users.find(u => u.email === email && atob(u.password) === password);
-        
-        if (!user) {
-            showToast('Неверный email или пароль', true);
-            return;
-        }
-        
-        if (!user.verified) {
-            showToast('Подтвердите email сначала', true);
-            return;
-        }
-        
-        const token = generateApiKey();
-        const sessions = DB.getSessions();
-        sessions.push({ token, userId: user.id, ip: await getIP(), createdAt: Date.now() });
-        DB.setSessions(sessions);
-        localStorage.setItem('session_token', token);
-        
-        currentUser = user;
-        loadUserEnvs();
-        renderDashboard();
-        showToast('Добро пожаловать!');
-    };
-    
-    window.handleRegister = async function() {
-        const username = document.getElementById('regUsername').value;
-        const email = document.getElementById('regEmail').value;
-        const password = document.getElementById('regPassword').value;
-        
-        if (!username || !email || !password) {
-            showToast('Заполните все поля', true);
-            return;
-        }
-        
-        const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            showToast('Введите корректный email', true);
-            return;
-        }
-        
-        const users = DB.getUsers();
-        if (users.find(u => u.email === email)) {
-            showToast('Email уже зарегистрирован', true);
-            return;
-        }
-        
-        const userIP = await getIP();
-        const ipCount = users.filter(u => u.ip === userIP).length;
-        if (ipCount >= 2) {
-            showToast('С одного IP можно создать не более 2 аккаунтов', true);
-            return;
-        }
-        
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Отправка реального email
-        showToast('📧 Отправка кода на почту...');
-        await sendVerificationEmail(email, code, username);
-        
-        const newUser = {
-            id: Date.now().toString(),
-            username,
-            email,
-            password: btoa(password),
-            ip: userIP,
-            verified: false,
-            verificationCode: code,
-            createdAt: Date.now()
-        };
-        
-        users.push(newUser);
-        DB.setUsers(users);
-        
-        showCodeModal(email);
-    };
-    
-    function showCodeModal(email) {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h3 style="margin-bottom: 20px;">📧 Подтверждение email</h3>
-                <p style="margin-bottom: 16px;">Введите код, отправленный на <strong>${email}</strong></p>
-                <input type="text" id="verifyCodeInput" class="input-field" placeholder="Код из 6 цифр" style="margin-bottom: 20px;">
-                <button class="btn-primary" style="width: 100%;" onclick="verifyCode('${email}')">Подтвердить</button>
-                <button onclick="closeModal(this)" style="margin-top: 12px; color: #64748b; cursor: pointer;">Отмена</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-    
-    window.verifyCode = function(email) {
-        const codeInput = document.getElementById('verifyCodeInput').value;
-        const users = DB.getUsers();
-        const user = users.find(u => u.email === email);
-        
-        if (user && user.verificationCode === codeInput) {
-            user.verified = true;
-            user.verificationCode = null;
-            DB.setUsers(users);
-            closeModal(document.querySelector('.modal'));
-            showToast('✅ Email подтвержден! Теперь войдите');
-            renderAuth();
-        } else {
-            showToast('❌ Неверный код', true);
-        }
-    };
-    
-    // ========== ДАШБОРД ==========
-    function renderDashboard() {
-        document.getElementById('app').innerHTML = `
-            <div style="padding: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
-                    <div class="menu-btn" onclick="toggleEnvPanel()">[:]</div>
-                    <h2 style="background: linear-gradient(135deg, #6366f1, #ec489a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Termux Manager</h2>
-                    <div class="avatar" onclick="toggleDropdown()">${currentUser.username[0].toUpperCase()}</div>
-                </div>
-                
-                <div class="dropdown" id="dropdownMenu">
-                    <a onclick="logout()">🚪 Logout (Выйти)</a>
-                    <a onclick="showProfile()">👤 Profile</a>
-                </div>
-                
-                <div class="env-panel" id="envPanel">
-                    <h3 style="margin-bottom: 20px;">📱 Termux Устройства</h3>
-                    <button class="btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="showCreateEnv()">+ Подключить устройство</button>
-                    <div id="envList"></div>
-                </div>
-                
-                <div class="glass" style="border-radius: 32px; padding: 40px; text-align: center; max-width: 800px; margin: 0 auto;">
-                    <h3 style="font-size: 24px; margin-bottom: 16px;">🚀 Управление Termux</h3>
-                    <p style="color: #94a3b8; margin-bottom: 24px;">Создай API ключ и подключи свой Termux через Python скрипт</p>
-                    <div style="background: #0f172a; border-radius: 16px; padding: 20px;">
-                        <p style="font-family: monospace; color: #a855f7;">🔑 Формат ключа: tmux_sk_live_XXXX-XXXX-XXXX_timestamp</p>
-                        <p style="font-size: 12px; color: #64748b; margin-top: 10px;">⚠️ Ключ показывается только один раз!</p>
-                    </div>
-                </div>
-            </div>
-        `;
-        renderEnvList();
-    }
-    
-    function renderEnvList() {
-        const container = document.getElementById('envList');
-        if (!container) return;
-        
-        if (environments.length === 0) {
-            container.innerHTML = '<p style="color: #64748b; text-align: center;">Нет подключенных устройств. Создайте первое!</p>';
-            return;
-        }
-        
-        container.innerHTML = environments.map(env => `
-            <div class="env-card" onclick="openEnvCommands('${env.id}')">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>${escapeHtml(env.name)}</strong>
-                        <div style="font-size: 11px; margin-top: 4px;">
-                            <span class="status-dot ${env.lastConnected ? 'status-online' : 'status-offline'}"></span>
-                            ${env.lastConnected ? 'Онлайн' : 'Офлайн'}
-                        </div>
-                    </div>
-                    <button onclick="event.stopPropagation(); deleteEnv('${env.id}')" style="color: #ef4444; font-size: 20px; cursor: pointer;">✕</button>
-                </div>
-                <div style="font-size: 10px; color: #a855f7; margin-top: 8px;">${env.key_preview || 'tmux_****'}</div>
-            </div>
-        `).join('');
-    }
-    
-    window.showCreateEnv = function() {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h3 style="margin-bottom: 20px;">📱 Подключить Termux устройство</h3>
-                <input type="text" id="envNameInput" class="input-field" placeholder="Название устройства (например: My Phone, Termux)" style="margin-bottom: 20px;">
-                <button class="btn-primary" style="width: 100%;" onclick="createEnvironment()">Создать API ключ</button>
-                <button onclick="closeModal(this)" style="margin-top: 12px; color: #64748b; cursor: pointer;">Отмена</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    };
-    
-    window.createEnvironment = function() {
-        const name = document.getElementById('envNameInput').value;
-        if (!name) {
-            showToast('Введите название устройства', true);
-            return;
-        }
-        
-        const secretKey = generateApiKey();
-        const apiLink = `${window.location.origin}${window.location.pathname}?api=${secretKey}`;
-        
-        const newEnv = {
-            id: Date.now().toString(),
-            userId: currentUser.id,
-            name: name,
-            secretKey: secretKey,
-            apiLink: apiLink,
-            key_preview: secretKey.substring(0, 25) + '...',
-            lastConnected: null,
-            commands: [],
-            createdAt: Date.now()
-        };
-        
-        const allEnvs = DB.getEnvs();
-        allEnvs.push(newEnv);
-        DB.setEnvs(allEnvs);
-        
-        loadUserEnvs();
-        renderEnvList();
-        closeModal(document.querySelector('.modal'));
-        
-        showKeyModal(newEnv);
-    };
-    
-    function showKeyModal(env) {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h3 style="margin-bottom: 16px;">🔐 API Ключ создан!</h3>
-                <p><strong>Устройство:</strong> ${escapeHtml(env.name)}</p>
-                <p style="margin-top: 16px;"><strong>🔑 Секретный ключ (сохрани!):</strong></p>
-                <div class="key-box">${escapeHtml(env.secretKey)}</div>
-                <p class="warning">⚠️ Этот ключ показывается только один раз! Используй его в Python скрипте.</p>
-                
-                <p style="margin-top: 16px;"><strong>📋 Команда для Termux:</strong></p>
-                <div class="key-box" style="font-size: 11px;">
-                    python termux_client.py ${escapeHtml(env.secretKey)}
-                </div>
-                
-                <button class="btn-primary" style="width: 100%; margin-top: 20px;" onclick="copyToClipboard('${escapeHtml(env.secretKey)}')">📋 Скопировать ключ</button>
-                <button onclick="closeModal(this)" style="margin-top: 12px; color: #64748b; cursor: pointer;">Закрыть</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-    
-    window.openEnvCommands = function(envId) {
-        const env = environments.find(e => e.id === envId);
-        if (!env) return;
-        
-        const commands = DB.getCommands().filter(c => c.envId === envId);
-        
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
-                <h3 style="margin-bottom: 8px;">📱 ${escapeHtml(env.name)}</h3>
-                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 20px;">
-                    <span class="status-dot ${env.lastConnected ? 'status-online' : 'status-offline'}"></span>
-                    ${env.lastConnected ? 'Подключен' : 'Не подключен'}
-                </p>
-                
-                <div style="margin-bottom: 20px;">
-                    <h4>📤 Отправить команду</h4>
-                    <textarea id="commandInput" class="input-field" rows="3" placeholder="Введите команду для Termux&#10;например: ls -la&#10;или: pwd&#10;или: python script.py" style="margin-top: 8px;"></textarea>
-                    <button class="btn-primary" style="margin-top: 12px;" onclick="sendCommand('${env.id}')">▶️ Отправить команду</button>
-                </div>
-                
-                <div>
-                    <h4>📜 История команд</h4>
-                    <div id="commandsHistory">
-                        ${commands.length === 0 ? '<p style="color: #64748b;">Нет выполненных команд</p>' : 
-                            commands.slice().reverse().map(cmd => `
-                                <div style="background: #0f172a; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
-                                    <div style="color: #a855f7; font-family: monospace; font-size: 12px;">> ${escapeHtml(cmd.command)}</div>
-                                    <div style="color: #10b981; font-family: monospace; font-size: 11px; margin-top: 8px;">${escapeHtml(cmd.output || '⏳ Выполняется...')}</div>
-                                    <div style="font-size: 10px; color: #64748b; margin-top: 8px;">${new Date(cmd.createdAt).toLocaleString()}</div>
-                                </div>
-                            `).join('')
-                        }
-                    </div>
-                </div>
-                
-                <button onclick="closeModal(this)" style="margin-top: 16px; color: #64748b; cursor: pointer;">Закрыть</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    };
-    
-    window.sendCommand = function(envId) {
-        const commandInput = document.getElementById('commandInput');
-        const command = commandInput.value.trim();
-        
-        if (!command) {
-            showToast('Введите команду', true);
-            return;
-        }
-        
-        const newCommand = {
-            id: Date.now().toString(),
-            envId: envId,
-            command: command,
-            output: null,
-            status: 'pending',
-            createdAt: Date.now()
-        };
-        
-        const allCommands = DB.getCommands();
-        allCommands.push(newCommand);
-        DB.setCommands(allCommands);
-        
-        commandInput.value = '';
-        showToast('✅ Команда отправлена! Ожидайте выполнения...');
-        
-        closeModal(document.querySelector('.modal'));
-        openEnvCommands(envId);
-    };
-    
-    window.deleteEnv = function(envId) {
-        if (confirm('Удалить устройство? Ключ будет навсегда утерян!')) {
-            const allEnvs = DB.getEnvs();
-            const filtered = allEnvs.filter(e => e.id !== envId);
-            DB.setEnvs(filtered);
-            loadUserEnvs();
-            renderEnvList();
-            showToast('Устройство удалено');
-        }
-    };
-    
-    window.toggleEnvPanel = function() {
-        document.getElementById('envPanel')?.classList.toggle('open');
-    };
-    
-    window.toggleDropdown = function() {
-        const menu = document.getElementById('dropdownMenu');
-        if (menu) {
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        }
-    };
-    
-    window.logout = function() {
-        localStorage.removeItem('session_token');
-        showToast('Вы вышли');
-        init();
-    };
-    
-    window.showProfile = function() {
-        showToast(`👤 Пользователь: ${currentUser.username}\n📧 Email: ${currentUser.email}`);
-    };
-    
-    window.copyToClipboard = function(text) {
-        navigator.clipboard.writeText(text);
-        showToast('📋 Скопировано!');
-    };
-    
-    window.closeModal = function(btn) {
-        btn.closest('.modal')?.remove();
-    };
-    
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-    
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.avatar') && !e.target.closest('.dropdown')) {
-            const menu = document.getElementById('dropdownMenu');
-            if (menu) menu.style.display = 'none';
-        }
-    });
-    
-    init();
+
+    // При загрузке страницы сразу получаем текст
+    fetchText();
+
+    // Автообновление каждые 5 секунд (можно убрать или изменить интервал)
+    setInterval(fetchText, 5000);
 </script>
 </body>
 </html>
