@@ -7,179 +7,156 @@
 </head>
 <body>
     <script>
-        // ============ ИГРОВОЙ ДВИЖОК - СЕРВЕР ============
+        // ============ ИГРОВОЙ ДВИЖОК С REAL API ============
         
         let serverActive = true;
-        let players = new Map();
+        let players = {};
         let messages = [];
-        let connectedGames = new Set();
+        let nextPlayerId = 1;
         
         const ENGINE_KEY = "AI_ENGINE_7x9k2m4n8p1q_SECURE_2024";
-        let eventListeners = new Map();
-        const SESSION_ID = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
         console.log('═══════════════════════════════════════════════════');
-        console.log('🎮 GAME ENGINE SERVER v3.0');
+        console.log('🎮 GAME ENGINE SERVER v5.0');
         console.log(`🔑 KEY: ${ENGINE_KEY}`);
-        console.log(`📡 STATUS: ${serverActive ? '🟢 ONLINE' : '🔴 OFFLINE'}`);
+        console.log(`📡 STATUS: ${serverActive ? 'ONLINE' : 'OFFLINE'}`);
         console.log('═══════════════════════════════════════════════════');
         
-        window.GameEngine = {
+        // ============ ГЛОБАЛЬНЫЙ API ============
+        window.GameEngineAPI = {
+            // Проверка статуса
             ping() {
-                return { status: serverActive ? 'online' : 'offline', session: SESSION_ID, timestamp: Date.now() };
+                return JSON.stringify({
+                    status: serverActive ? 'online' : 'offline',
+                    timestamp: Date.now()
+                });
             },
             
+            // Получить статус
             getStatus() {
-                return { active: serverActive, players: players.size, session: SESSION_ID };
+                return JSON.stringify({
+                    active: serverActive,
+                    players: Object.keys(players).length,
+                    messages: messages.length
+                });
             },
             
-            connect(playerData) {
-                console.log('📡 Подключение:', playerData);
-                
+            // Подключить игрока
+            connect(playerName) {
                 if (!serverActive) {
-                    return { success: false, error: 'SERVER_STOPPED', message: 'Сервер остановлен' };
+                    return JSON.stringify({ error: 'SERVER_STOPPED' });
                 }
                 
-                const playerId = playerData.id || ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
-                
-                const player = {
+                const playerId = 'p' + nextPlayerId++;
+                players[playerId] = {
                     id: playerId,
-                    name: playerData.name.substring(0, 20),
-                    position: playerData.position || { x: 0, y: 0, z: 0 },
-                    rotation: playerData.rotation || { y: 0 },
-                    color: playerData.color || this.getRandomColor(),
-                    connectedAt: Date.now(),
-                    lastUpdate: Date.now()
+                    name: playerName || 'Player_' + playerId,
+                    x: 0,
+                    z: 0,
+                    rot: 0,
+                    lastSeen: Date.now()
                 };
                 
-                players.set(playerId, player);
-                this.broadcast('player_joined', player);
+                console.log(`✅ ${players[playerId].name} подключился`);
                 
-                console.log(`✅ Игрок: ${player.name} | Всего: ${players.size}`);
-                
-                return {
+                return JSON.stringify({
                     success: true,
                     playerId: playerId,
-                    players: this.getAllPlayers(),
-                    chatHistory: messages.slice(-100),
-                    serverStatus: serverActive
-                };
+                    players: players,
+                    chatHistory: messages.slice(-50)
+                });
             },
             
+            // Отключить игрока
             disconnect(playerId) {
-                if (players.has(playerId)) {
-                    const player = players.get(playerId);
-                    players.delete(playerId);
-                    this.broadcast('player_left', player);
-                    return { success: true };
+                if (players[playerId]) {
+                    const name = players[playerId].name;
+                    delete players[playerId];
+                    console.log(`❌ ${name} отключился`);
+                    return JSON.stringify({ success: true });
                 }
-                return { success: false };
+                return JSON.stringify({ error: 'NOT_FOUND' });
             },
             
-            updatePosition(playerId, position, rotation, animationState) {
-                if (!serverActive) return { error: 'SERVER_STOPPED' };
-                if (players.has(playerId)) {
-                    const player = players.get(playerId);
-                    player.position = position;
-                    if (rotation) player.rotation = rotation;
-                    if (animationState) player.animationState = animationState;
-                    player.lastUpdate = Date.now();
-                    
-                    this.broadcast('position_update', {
-                        playerId, position, rotation, animationState,
-                        playerName: player.name
-                    });
-                    return { success: true };
+            // Обновить позицию
+            updatePosition(playerId, x, z, rot) {
+                if (!serverActive) return JSON.stringify({ error: 'SERVER_STOPPED' });
+                if (players[playerId]) {
+                    players[playerId].x = x;
+                    players[playerId].z = z;
+                    players[playerId].rot = rot;
+                    players[playerId].lastSeen = Date.now();
+                    return JSON.stringify({ success: true });
                 }
-                return { error: 'PLAYER_NOT_FOUND' };
+                return JSON.stringify({ error: 'NOT_FOUND' });
             },
             
+            // Отправить сообщение
             sendMessage(playerId, text) {
-                if (!serverActive) return { error: 'SERVER_STOPPED' };
-                if (!players.has(playerId)) return { error: 'PLAYER_NOT_FOUND' };
+                if (!serverActive) return JSON.stringify({ error: 'SERVER_STOPPED' });
+                if (!players[playerId]) return JSON.stringify({ error: 'NOT_FOUND' });
                 
-                const player = players.get(playerId);
-                const message = {
-                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                    playerId, playerName: player.name, text: text.trim().substring(0, 200),
-                    timestamp: Date.now(), color: player.color
+                const msg = {
+                    player: players[playerId].name,
+                    text: text.substring(0, 200),
+                    time: Date.now()
                 };
+                messages.push(msg);
+                if (messages.length > 200) messages.shift();
                 
-                messages.push(message);
-                if (messages.length > 500) messages.shift();
-                this.broadcast('new_message', message);
-                return { success: true };
+                console.log(`💬 ${msg.player}: ${msg.text}`);
+                return JSON.stringify({ success: true, message: msg });
             },
             
-            getAllPlayers() {
-                return Array.from(players.values());
+            // Получить всех игроков
+            getPlayers() {
+                return JSON.stringify(players);
             },
             
-            getChatHistory(limit = 100) {
-                return messages.slice(-limit);
-            },
-            
-            getRandomColor() {
-                const colors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4'];
-                return colors[Math.floor(Math.random() * colors.length)];
-            },
-            
-            broadcast(event, data) {
-                if (eventListeners.has(event)) {
-                    eventListeners.get(event).forEach(cb => { try { cb(data); } catch(e) {} });
-                }
-            },
-            
-            on(event, callback) {
-                if (!eventListeners.has(event)) eventListeners.set(event, []);
-                eventListeners.get(event).push(callback);
-                return () => {
-                    const list = eventListeners.get(event);
-                    if (list) { const i = list.indexOf(callback); if (i > -1) list.splice(i, 1); }
-                };
-            },
-            
-            registerGame(gameId) {
-                connectedGames.add(gameId);
-                return { success: true };
+            // Получить сообщения
+            getMessages(since) {
+                return JSON.stringify(messages);
             }
         };
         
-        window.ServerControl = {
+        // ============ УПРАВЛЕНИЕ ДЛЯ PYTHON ============
+        window.ControlAPI = {
             stop(key) {
-                if (key !== ENGINE_KEY) return { success: false };
+                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
                 serverActive = false;
-                window.GameEngine.broadcast('server_stopped', { message: 'Сервер остановлен' });
-                return { success: true };
+                console.log('🛑 SERVER STOPPED');
+                return JSON.stringify({ success: true });
             },
+            
             start(key) {
-                if (key !== ENGINE_KEY) return { success: false };
+                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
                 serverActive = true;
-                window.GameEngine.broadcast('server_started', { message: 'Сервер запущен' });
-                return { success: true };
+                console.log('🟢 SERVER STARTED');
+                return JSON.stringify({ success: true });
             },
+            
             getStats(key) {
-                if (key !== ENGINE_KEY) return { success: false };
-                return {
-                    success: true, active: serverActive, playersCount: players.size,
-                    players: Array.from(players.values()),
+                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
+                return JSON.stringify({
+                    active: serverActive,
+                    players: Object.keys(players).length,
+                    playersList: players,
                     messagesCount: messages.length
-                };
+                });
             }
         };
         
+        // Очистка неактивных игроков
         setInterval(() => {
-            if (!serverActive) return;
             const now = Date.now();
-            for (const [id, player] of players) {
-                if (now - player.lastUpdate > 60000) {
-                    players.delete(id);
-                    window.GameEngine.broadcast('player_left', player);
+            for (let id in players) {
+                if (now - players[id].lastSeen > 30000) {
+                    delete players[id];
                 }
             }
-        }, 30000);
+        }, 10000);
         
-        console.log('✅ Движок готов');
+        console.log('✅ Сервер готов!');
     </script>
 </body>
 </html>
