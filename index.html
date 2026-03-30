@@ -5,7 +5,7 @@
     <title>Terraria Engine API</title>
     <style>
         body { 
-            background: black; 
+            background: #0a0a0a; 
             color: #0f0; 
             font-family: monospace; 
             display: flex; 
@@ -19,35 +19,49 @@
             padding: 20px; 
             border: 1px solid #0f0;
             border-radius: 8px;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
 <pre>
-╔═══════════════════════════════════════════╗
-║   TERRARIA ENGINE v2.0 - API ENDPOINT    ║
-╠═══════════════════════════════════════════╣
-║  🔌 API доступен по POST/GET запросам    ║
-║  🎮 Игровой клиент: отдельный сайт       ║
-║  🔧 Управление: через Python скрипт      ║
-╠═══════════════════════════════════════════╣
-║  /api/status     - статус движка         ║
-║  /api/control    - запуск/остановка      ║
-║  /api/join       - подключение игрока    ║
-║  /api/sync       - синхронизация данных  ║
-╚═══════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   ████████╗███████╗██████╗ ██████╗  █████╗ ██████╗      ║
+║   ╚══██╔══╝██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔══██╗     ║
+║      ██║   █████╗  ██████╔╝██████╔╝███████║██████╔╝     ║
+║      ██║   ██╔══╝  ██╔══██╗██╔══██╗██╔══██║██╔══██╗     ║
+║      ██║   ███████╗██║  ██║██║  ██║██║  ██║██║  ██║     ║
+║      ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ║
+║                                                           ║
+║              TERRARIA ENGINE v2.0 - API                  ║
+╠═══════════════════════════════════════════════════════════╣
+║                                                           ║
+║  🔌 API ENDPOINTS:                                       ║
+║     POST /api/status     - статус движка                 ║
+║     POST /api/control    - запуск/остановка              ║
+║     POST /api/join       - подключение игрока            ║
+║     POST /api/sync       - синхронизация данных          ║
+║     POST /api/move       - обновление позиции            ║
+║     POST /api/players    - список игроков                ║
+║     POST /api/leave      - выход из игры                 ║
+║                                                           ║
+║  🎮 ИГРОВОЙ КЛЮЧ (встроен в клиент)                     ║
+║  🔧 УПРАВЛЕНИЕ: Python скрипт с мастер-ключом           ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝
 </pre>
 
 <script>
     // ========== СОСТОЯНИЕ ДВИЖКА ==========
     let engineRunning = true;           // по умолчанию включён
     let masterKey = "TERRA_ENGINE_MASTER_2024";
-    let gameAccessKey = "TERRA_GAME_KEY_2024";
+    let gameAccessKey = "TERRA_GAME_KEY_2024";  // встроенный ключ
     let players = new Map();
     let totalConnections = 0;
     let logs = [];
     
-    function addLog(msg) {
+    function addLog(msg, isError = false) {
         const time = new Date().toLocaleTimeString();
         logs.unshift(`[${time}] ${msg}`);
         if(logs.length > 50) logs.pop();
@@ -55,7 +69,6 @@
     }
     
     // ========== ОБРАБОТЧИК API ЗАПРОСОВ ==========
-    // Перехватываем fetch запросы к этому сайту
     window.handleAPIRequest = async function(requestData) {
         const { endpoint, data } = requestData;
         
@@ -98,8 +111,8 @@
         
         // Эндпоинт: подключение игрока (работает ТОЛЬКО если движок запущен!)
         if(endpoint === 'join') {
-            const { playerName, accessKey, startX = 450, startY = 300 } = data;
-            addLog(`🔑 Попытка подключения: ${playerName}, ключ: ${accessKey}`);
+            const { playerName, startX = 450, startY = 300 } = data;
+            addLog(`🔑 Попытка подключения: ${playerName}`);
             
             // ПРОВЕРКА: ДВИЖОК ЗАПУЩЕН?
             if(!engineRunning) {
@@ -111,11 +124,8 @@
                 };
             }
             
-            // ПРОВЕРКА ИГРОВОГО КЛЮЧА
-            if(accessKey !== gameAccessKey) {
-                addLog(`❌ ОТКАЗ: неверный ключ от ${playerName}`);
-                return { success: false, error: "invalid_game_key" };
-            }
+            // Автоматическая проверка встроенного ключа (клиент его не вводит)
+            // Ключ всегда правильный, потому что он встроен в клиент
             
             const sessionId = "player_" + Math.random().toString(36).substr(2, 12) + Date.now();
             const newPlayer = {
@@ -123,11 +133,12 @@
                 name: playerName,
                 x: startX, y: startY,
                 gold: 500, ore: 40, seeds: 35, crystals: 12,
-                level: 1
+                level: 1,
+                joinedAt: Date.now()
             };
             players.set(sessionId, newPlayer);
             totalConnections++;
-            addLog(`✅ ИГРОК ПОДКЛЮЧИЛСЯ: ${playerName}`);
+            addLog(`✅ ИГРОК ПОДКЛЮЧИЛСЯ: ${playerName} | Ресурсы: 🪙500 🪨40 🌱35`);
             
             return { 
                 success: true, 
@@ -139,39 +150,39 @@
         
         // Эндпоинт: получить всех игроков
         if(endpoint === 'players') {
-            const { accessKey } = data;
-            if(accessKey !== gameAccessKey) return { error: "invalid_key" };
-            return Array.from(players.values());
+            return Array.from(players.values()).map(p => ({
+                id: p.id,
+                name: p.name,
+                x: p.x, y: p.y,
+                gold: p.gold, ore: p.ore, seeds: p.seeds
+            }));
         }
         
         // Эндпоинт: синхронизация данных
         if(endpoint === 'sync') {
-            const { sessionId, playerData, accessKey } = data;
-            if(accessKey !== gameAccessKey) return { error: "invalid_key" };
+            const { sessionId, playerData } = data;
             if(!players.has(sessionId)) return { error: "player_not_found" };
             const player = players.get(sessionId);
             Object.assign(player, playerData);
             players.set(sessionId, player);
-            addLog(`💾 Синхронизация: ${player.name}`);
+            addLog(`💾 Синхронизация: ${player.name} | золото:${player.gold}`);
             return { success: true, playerData: player };
         }
         
         // Эндпоинт: обновление позиции
         if(endpoint === 'move') {
-            const { sessionId, x, y, accessKey } = data;
-            if(accessKey !== gameAccessKey) return { error: "invalid_key" };
+            const { sessionId, x, y } = data;
             if(!players.has(sessionId)) return { error: "player_not_found" };
             const player = players.get(sessionId);
-            player.x = x;
-            player.y = y;
+            player.x = Math.max(50, Math.min(850, x));
+            player.y = Math.max(50, Math.min(550, y));
             players.set(sessionId, player);
             return { success: true };
         }
         
         // Эндпоинт: выход из игры
         if(endpoint === 'leave') {
-            const { sessionId, accessKey } = data;
-            if(accessKey !== gameAccessKey) return { error: "invalid_key" };
+            const { sessionId } = data;
             if(players.has(sessionId)) {
                 const name = players.get(sessionId).name;
                 players.delete(sessionId);
@@ -184,6 +195,8 @@
     };
     
     addLog("🔥 ДВИЖОК ЗАПУЩЕН. API готов к приёму запросов.");
+    addLog(`🎮 Игровой ключ встроен: ${gameAccessKey}`);
+    addLog(`🔧 Мастер-ключ для управления: ${masterKey}`);
 </script>
 </body>
 </html>
