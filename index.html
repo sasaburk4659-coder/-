@@ -2,167 +2,123 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Terraria Engine API</title>
+    <title>TERRA ENGINE</title>
+    <style>
+        body { margin: 0; background: #000; height: 100vh; overflow: hidden; }
+    </style>
 </head>
 <body>
 <script>
-    // ========== СОСТОЯНИЕ ДВИЖКА ==========
+    // ========== ТЕРРАРИУМ ДВИЖОК v2.0 ==========
+    // Полностью скрытый API-сервер
+    
     let engineRunning = true;
     let masterKey = "TERRA_ENGINE_MASTER_2024";
-    let gameAccessKey = "TERRA_GAME_KEY_2024";
     let players = new Map();
     let totalConnections = 0;
+    let syncCount = 0;
     
-    function addLog(msg) {
-        console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
+    function saveToStorage() {
+        localStorage.setItem('terra_engine_running', engineRunning);
+        localStorage.setItem('terra_players', JSON.stringify(Array.from(players.values())));
+        localStorage.setItem('terra_total_connections', totalConnections);
+        localStorage.setItem('terra_sync_count', syncCount);
+        localStorage.setItem('terra_last_update', Date.now());
     }
     
-    // ========== ОБРАБОТКА POST ЗАПРОСОВ ==========
-    async function handleRequest(requestData) {
-        const { endpoint, data = {} } = requestData;
+    function loadFromStorage() {
+        const savedEngine = localStorage.getItem('terra_engine_running');
+        if (savedEngine !== null) engineRunning = savedEngine === 'true';
         
-        // Статус движка
-        if (endpoint === 'status') {
-            addLog(`📡 Запрос статуса: ${engineRunning ? 'РАБОТАЕТ' : 'ОСТАНОВЛЕН'}`);
-            return { 
-                running: engineRunning,
-                message: engineRunning ? "Движок запущен" : "Движок остановлен",
-                playersOnline: players.size
-            };
+        const savedPlayers = localStorage.getItem('terra_players');
+        if (savedPlayers) {
+            const parsed = JSON.parse(savedPlayers);
+            players.clear();
+            parsed.forEach(p => players.set(p.id, p));
         }
         
-        // Управление движком
-        if (endpoint === 'control') {
-            const { action, key } = data;
-            if (key !== masterKey) {
-                return { success: false, error: "invalid_master_key" };
-            }
-            if (action === 'start') {
-                engineRunning = true;
-                addLog(`🚀 ДВИЖОК ЗАПУЩЕН`);
-                return { success: true, running: true };
-            }
-            if (action === 'stop') {
-                engineRunning = false;
-                addLog(`🛑 ДВИЖОК ОСТАНОВЛЕН`);
-                return { success: true, running: false };
-            }
-            return { success: false, error: "unknown_action" };
-        }
+        const savedTotal = localStorage.getItem('terra_total_connections');
+        if (savedTotal) totalConnections = parseInt(savedTotal);
         
-        // Подключение игрока
-        if (endpoint === 'join') {
-            const { playerName, startX = 450, startY = 300 } = data;
-            addLog(`🔑 Попытка подключения: ${playerName}`);
-            
+        const savedSync = localStorage.getItem('terra_sync_count');
+        if (savedSync) syncCount = parseInt(savedSync);
+    }
+    
+    // ========== API ДЛЯ ИГРОВОГО КЛИЕНТА ==========
+    window.TerraEngine = {
+        getStatus: () => {
+            return { running: engineRunning, playersOnline: players.size };
+        },
+        
+        join: (playerName) => {
             if (!engineRunning) {
-                return { 
-                    success: false, 
-                    error: "engine_stopped", 
-                    message: "ДВИЖОК ОСТАНОВЛЕН! Игра недоступна."
-                };
+                return { success: false, error: "engine_stopped" };
             }
-            
-            const sessionId = "player_" + Math.random().toString(36).substr(2, 12) + Date.now();
+            const sessionId = "p_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
             const newPlayer = {
-                id: sessionId,
-                name: playerName,
-                x: startX, y: startY,
-                gold: 500, ore: 40, seeds: 35, crystals: 12,
-                level: 1,
+                id: sessionId, name: playerName,
+                x: 450, y: 300, gold: 500, ore: 40, seeds: 35, crystals: 12,
                 joinedAt: Date.now()
             };
             players.set(sessionId, newPlayer);
             totalConnections++;
-            addLog(`✅ ИГРОК ПОДКЛЮЧИЛСЯ: ${playerName}`);
-            
-            return { 
-                success: true, 
-                sessionId: sessionId, 
-                playerData: newPlayer,
-                allPlayers: Array.from(players.values())
-            };
-        }
+            saveToStorage();
+            return { success: true, sessionId: sessionId, playerData: newPlayer };
+        },
         
-        // Получить всех игроков
-        if (endpoint === 'players') {
-            return Array.from(players.values()).map(p => ({
-                id: p.id, name: p.name, x: p.x, y: p.y,
-                gold: p.gold, ore: p.ore, seeds: p.seeds
-            }));
-        }
-        
-        // Синхронизация данных
-        if (endpoint === 'sync') {
-            const { sessionId, playerData } = data;
+        sync: (sessionId, playerData) => {
             if (!players.has(sessionId)) return { error: "player_not_found" };
             const player = players.get(sessionId);
             Object.assign(player, playerData);
             players.set(sessionId, player);
-            addLog(`💾 Синхронизация: ${player.name}`);
+            syncCount++;
+            saveToStorage();
             return { success: true, playerData: player };
-        }
+        },
         
-        // Обновление позиции
-        if (endpoint === 'move') {
-            const { sessionId, x, y } = data;
+        move: (sessionId, x, y) => {
             if (!players.has(sessionId)) return { error: "player_not_found" };
             const player = players.get(sessionId);
-            player.x = Math.max(50, Math.min(850, x));
-            player.y = Math.max(50, Math.min(550, y));
+            player.x = x;
+            player.y = y;
+            saveToStorage();
             return { success: true };
-        }
+        },
         
-        // Выход из игры
-        if (endpoint === 'leave') {
-            const { sessionId } = data;
+        getPlayers: () => {
+            return Array.from(players.values()).map(p => ({
+                id: p.id, name: p.name, x: p.x, y: p.y,
+                gold: p.gold, ore: p.ore, seeds: p.seeds
+            }));
+        },
+        
+        leave: (sessionId) => {
             if (players.has(sessionId)) {
-                const name = players.get(sessionId).name;
                 players.delete(sessionId);
-                addLog(`👋 ИГРОК ВЫШЕЛ: ${name}`);
+                saveToStorage();
             }
             return { success: true };
-        }
+        },
         
-        return { error: "unknown_endpoint" };
-    }
-    
-    // ========== ПЕРЕХВАТ FETCH ЗАПРОСОВ ==========
-    // Сохраняем оригинальный fetch
-    const originalFetch = window.fetch;
-    
-    // Переопределяем fetch для обработки API запросов
-    window.fetch = async function(url, options) {
-        // Проверяем, это запрос к нашему API?
-        if (options && options.method === 'POST' && options.body) {
-            try {
-                const body = JSON.parse(options.body);
-                if (body.endpoint) {
-                    console.log("API Request:", body);
-                    const result = await handleRequest(body);
-                    // Возвращаем Response объект
-                    return new Response(JSON.stringify(result), {
-                        status: 200,
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                }
-            } catch(e) {
-                console.error("Parse error:", e);
+        // ========== УПРАВЛЕНИЕ ДВИЖКОМ (только для Python скрипта) ==========
+        control: (action, key) => {
+            if (key !== masterKey) return { success: false, error: "invalid_key" };
+            if (action === 'start') {
+                engineRunning = true;
+                saveToStorage();
+                return { success: true, running: true };
             }
+            if (action === 'stop') {
+                engineRunning = false;
+                saveToStorage();
+                return { success: true, running: false };
+            }
+            return { success: false, error: "unknown_action" };
         }
-        // Если не API запрос, используем оригинальный fetch
-        return originalFetch(url, options);
     };
     
-    addLog("🔥 ДВИЖОК ЗАПУЩЕН. API готов к приёму запросов.");
+    loadFromStorage();
+    console.log("TERRA ENGINE READY");
 </script>
-<!-- Видимая часть (только техническая информация) -->
-<pre style="background:#0a0a0a; color:#0f0; padding:20px; font-family:monospace; position:fixed; bottom:10px; left:10px; font-size:10px;">
-╔═══════════════════════════════════════════════════════════╗
-║  🟢 ДВИЖОК РАБОТАЕТ                                      ║
-║  🎮 Игровой ключ: TERRA_GAME_KEY_2024 (встроен)          ║
-║  🔧 Управление: Python скрипт                            ║
-╚═══════════════════════════════════════════════════════════╝
-</pre>
 </body>
 </html>
