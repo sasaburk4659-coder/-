@@ -2,468 +2,588 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Чат-Сервер | WebSocket Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>📱 3D CLIENT | Space Nexus</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
-
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            color: #fff;
-            min-height: 100vh;
-            padding: 20px;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', 'Segoe UI', monospace;
+            touch-action: pan-x pan-y;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
         }
-
-        .header {
-            background: rgba(0,0,0,0.3);
+        
+        .game-ui {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.7));
+            backdrop-filter: blur(15px);
+            padding: 15px 12px 20px;
+            border-top: 2px solid #0ff;
+            z-index: 200;
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .stat {
+            background: rgba(0, 20, 40, 0.9);
+            border-radius: 30px;
+            padding: 6px 12px;
+            text-align: center;
+            flex: 1;
+            min-width: 70px;
+            border-left: 2px solid #0ff;
+        }
+        
+        .stat-label {
+            font-size: 0.55rem;
+            color: #8aaaff;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #0ff;
+        }
+        
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn {
+            background: rgba(0, 30, 50, 0.9);
+            border: 1px solid #0ff;
+            color: #0ff;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            backdrop-filter: blur(5px);
+            touch-action: manipulation;
+            flex: 1;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .btn:active {
+            transform: scale(0.96);
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 15px cyan;
+        }
+        
+        .btn-danger {
+            border-color: #ff6688;
+            color: #ff6688;
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.85);
+            padding: 6px 12px;
             border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
+            font-size: 0.65rem;
+            z-index: 200;
+            font-family: monospace;
+            border: 1px solid #ffaa44;
+            color: #ffaa44;
+            backdrop-filter: blur(5px);
+        }
+        
+        .tap-indicator {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0,255,255,0.5);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: tapRipple 0.4s ease-out forwards;
+            z-index: 300;
+        }
+        
+        @keyframes tapRipple {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            padding: 25px;
+            border-radius: 30px;
+            text-align: center;
+            border: 2px solid #ff3366;
+            z-index: 300;
+            min-width: 250px;
             backdrop-filter: blur(10px);
         }
-
-        .server-info {
-            background: rgba(0,0,0,0.5);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid #00ff88;
+        
+        .game-over h2 {
+            color: #ff3366;
+            margin-bottom: 15px;
         }
-
-        .key-box {
-            background: #000;
-            padding: 15px;
-            border-radius: 10px;
+        
+        .server-url {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 0.55rem;
+            color: #6aa;
+            z-index: 200;
             font-family: monospace;
-            font-size: 24px;
-            text-align: center;
-            margin: 15px 0;
-            letter-spacing: 2px;
-            word-break: break-all;
         }
-
-        .clients-grid {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .clients-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-            min-height: 80px;
-        }
-
-        .client-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 10px 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: fadeIn 0.3s;
-        }
-
-        .online-dot {
-            width: 10px;
-            height: 10px;
-            background: #4ade80;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .chat-container {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            overflow: hidden;
-        }
-
-        .messages {
-            height: 400px;
-            overflow-y: auto;
-            padding: 20px;
-            background: rgba(0,0,0,0.2);
-        }
-
-        .message {
-            background: rgba(255,255,255,0.1);
-            margin-bottom: 10px;
-            padding: 10px 15px;
-            border-radius: 10px;
-            max-width: 70%;
-            animation: slideIn 0.3s;
-        }
-
-        .message.server {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin-left: auto;
-            max-width: 70%;
-        }
-
-        .message.sender {
-            font-weight: bold;
-            color: #ffd966;
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-
-        .message.text {
-            font-size: 14px;
-            word-wrap: break-word;
-        }
-
-        .message.time {
-            font-size: 10px;
-            opacity: 0.6;
-            margin-top: 5px;
-        }
-
-        .input-area {
-            display: flex;
-            padding: 20px;
-            gap: 10px;
-            background: rgba(0,0,0,0.3);
-        }
-
-        .input-area input {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            font-size: 14px;
-        }
-
-        .input-area input:focus {
-            outline: none;
-            background: rgba(255,255,255,0.2);
-        }
-
-        .input-area button {
-            padding: 12px 30px;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-
-        .input-area button:hover {
-            transform: scale(0.95);
-        }
-
-        .status {
-            padding: 10px;
-            text-align: center;
-            background: rgba(0,0,0,0.5);
-            border-radius: 10px;
-            margin-top: 10px;
-            font-size: 12px;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .copy-btn {
-            background: #00ff88;
-            color: #000;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
+        
+        @media (max-width: 600px) {
+            .btn { padding: 8px 12px; font-size: 0.7rem; min-width: 70px; }
+            .stat { padding: 4px 8px; }
+            .stat-value { font-size: 0.85rem; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 Чат-Сервер (WebSocket)</h1>
-            <p>Центральный узел — все клиенты подключаются сюда</p>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="connection-status" id="connStatus">
+        🔌 ПОДКЛЮЧЕНИЕ К СЕРВЕРУ...
+    </div>
+    
+    <div class="server-url" id="serverUrl">
+        🖥️ СЕРВЕР: https://sasaburk4659-coder.github.io/Sexiser/
+    </div>
+    
+    <div class="game-ui" id="gameUI">
+        <div class="stats-bar">
+            <div class="stat"><div class="stat-label">💠 ЯДРО</div><div class="stat-value" id="coreEnergy">--%</div></div>
+            <div class="stat"><div class="stat-label">⚙️ НАНОБОТЫ</div><div class="stat-value" id="nanoBots">--</div></div>
+            <div class="stat"><div class="stat-label">🏆 СЧЁТ</div><div class="stat-value" id="score">0</div></div>
+            <div class="stat"><div class="stat-label">🌊 ВОЛНА</div><div class="stat-value" id="wave">1</div></div>
         </div>
-
-        <div class="server-info">
-            <h3>🔑 Ключ для подключения клиентов:</h3>
-            <div class="key-box" id="serverKey">Загрузка...</div>
-            <button class="copy-btn" onclick="copyKey()">📋 Копировать ключ</button>
-            <p style="margin-top: 10px; font-size: 12px;">ℹ️ Клиенты подключаются по WebSocket: <span id="wsUrl">ws://...</span></p>
+        
+        <div class="controls-row">
+            <button class="btn" id="btnUpgrade">⚡ АПГРЕЙД</button>
+            <button class="btn" id="btnShield">🛡️ ЩИТ (55)</button>
+            <button class="btn" id="btnRepair">🔧 ВОССТАНОВИТЬ</button>
+            <button class="btn btn-danger" id="btnReset">🔄 РЕСТАРТ</button>
         </div>
-
-        <div class="clients-grid">
-            <h3>👥 Подключенные клиенты (<span id="clientCount">0</span>)</h3>
-            <div class="clients-list" id="clientsList">
-                <div style="opacity: 0.5;">Ожидание подключений...</div>
-            </div>
+        
+        <div style="text-align: center; font-size: 0.6rem; color: #6aa; margin-top: 8px;">
+            👆 КАСНИТЕСЬ ПО ВРАГУ - АТАКА НАНОБОТАМИ
         </div>
-
-        <div class="chat-container">
-            <div class="messages" id="messages">
-                <div class="message">
-                    <div class="sender">🖥️ Сервер</div>
-                    <div class="text">Сервер запущен и готов принимать подключения</div>
-                    <div class="time">Только что</div>
-                </div>
-            </div>
-            <div class="input-area">
-                <input type="text" id="messageInput" placeholder="Введите сообщение для всех клиентов...">
-                <button onclick="sendToAll()">📨 Отправить всем</button>
-            </div>
-        </div>
-        <div class="status" id="status">✅ Сервер активен</div>
+    </div>
+    
+    <div id="gameOverlay" style="display: none;" class="game-over">
+        <h2>💀 GAME OVER 💀</h2>
+        <p style="color:#fff; margin: 10px 0;">Сервер уничтожен</p>
+        <button class="btn" id="restartBtn" style="margin-top: 10px;">🔄 НОВАЯ ИГРА</button>
     </div>
 
-    <script>
-        // Генерация уникального ключа сервера
-        const SERVER_KEY = generateServerKey();
-        let webSocketServer = null;
-        let clients = new Map(); // Map<clientId, {ws, name, connectedAt}>
-        
-        // Отображаем ключ
-        document.getElementById('serverKey').innerText = SERVER_KEY;
-        document.getElementById('wsUrl').innerText = `ws://${window.location.host}/`;
-        
-        // Функция генерации ключа
-        function generateServerKey() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
-            let key = '';
-            for (let i = 0; i < 8; i++) {
-                key += chars[Math.floor(Math.random() * chars.length)];
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
             }
-            return key;
         }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
         
-        // Копирование ключа
-        function copyKey() {
-            navigator.clipboard.writeText(SERVER_KEY);
-            alert('Ключ скопирован!');
-        }
+        // ==================== КЛИЕНТ - ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ====================
+        // Адрес сервера (родительский iframe или прямое подключение)
+        const SERVER_URL = "https://sasaburk4659-coder.github.io/Sexiser/";
         
-        // Добавление сообщения в чат
-        function addMessage(sender, text, isServer = false) {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message' + (isServer ? ' server' : '');
-            const time = new Date().toLocaleTimeString();
-            messageDiv.innerHTML = `
-                <div class="sender">${sender}</div>
-                <div class="text">${escapeHtml(text)}</div>
-                <div class="time">${time}</div>
-            `;
-            messagesDiv.appendChild(messageDiv);
-            messageDiv.scrollIntoView({ behavior: 'smooth' });
-        }
+        let clientId = null;
+        let currentState = null;
+        let connected = false;
+        let pendingActions = [];
         
-        // Обновление списка клиентов
-        function updateClientsList() {
-            const clientsList = document.getElementById('clientsList');
-            const clientCount = document.getElementById('clientCount');
-            
-            if (clients.size === 0) {
-                clientsList.innerHTML = '<div style="opacity: 0.5;">Нет подключенных клиентов</div>';
-                clientCount.innerText = '0';
-                return;
+        // API для связи с сервером (через postMessage для кросс-доменного взаимодействия)
+        let serverWindow = null;
+        
+        function initConnection() {
+            // Пытаемся найти родительское окно (если клиент в iframe на сервере)
+            if (window.parent && window.parent !== window) {
+                serverWindow = window.parent;
+                setupPostMessage();
+                sendToServer({ type: 'REGISTER_CLIENT' });
+            } else {
+                // Если не в iframe, пытаемся открыть сервер в новом окне или используем localStorage
+                document.getElementById('connStatus').innerHTML = '⚠️ ОЖИДАНИЕ СЕРВЕРА...';
+                document.getElementById('connStatus').style.borderColor = '#ffaa44';
+                
+                // Пытаемся подключиться через localStorage (для демо-режима)
+                setupLocalStorageConnection();
             }
-            
-            clientsList.innerHTML = '';
-            clients.forEach((client, id) => {
-                const clientCard = document.createElement('div');
-                clientCard.className = 'client-card';
-                clientCard.innerHTML = `
-                    <span class="online-dot"></span>
-                    <span>${escapeHtml(client.name)}</span>
-                    <span style="font-size: 10px; opacity: 0.7;">ID: ${id.slice(-6)}</span>
-                `;
-                clientsList.appendChild(clientCard);
-            });
-            clientCount.innerText = clients.size;
         }
         
-        // Отправка сообщения всем клиентам
-        function broadcastToClients(message, excludeWs = null) {
-            clients.forEach((client, id) => {
-                if (client.ws !== excludeWs && client.ws.readyState === WebSocket.OPEN) {
-                    client.ws.send(JSON.stringify(message));
+        function setupPostMessage() {
+            window.addEventListener('message', (event) => {
+                // Проверяем происхождение сообщения
+                if (event.origin !== "https://sasaburk4659-coder.github.io") return;
+                
+                const data = event.data;
+                if (data.type === 'CLIENT_REGISTERED') {
+                    clientId = data.clientId;
+                    connected = true;
+                    document.getElementById('connStatus').innerHTML = '🟢 ПОДКЛЮЧЕН К СЕРВЕРУ';
+                    document.getElementById('connStatus').style.borderColor = '#0f0';
+                    document.getElementById('connStatus').style.color = '#0f0';
+                    
+                    // Отправляем ожидающие действия
+                    pendingActions.forEach(action => sendToServer(action));
+                    pendingActions = [];
+                }
+                else if (data.type === 'GAME_STATE_UPDATE') {
+                    currentState = data.state;
+                    updateUI();
+                    update3DEnemies(currentState.enemies || []);
+                    if (currentState.gameOver) showGameOver();
+                }
+                else if (data.type === 'ACTION_RESULT') {
+                    console.log('Action result:', data.result);
                 }
             });
         }
         
-        // Отправка сообщения от сервера
-        function sendToAll() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text) return;
+        function sendToServer(message) {
+            if (serverWindow && connected) {
+                serverWindow.postMessage({ ...message, clientId }, "https://sasaburk4659-coder.github.io");
+            } else if (serverWindow) {
+                pendingActions.push(message);
+            }
+        }
+        
+        // Демо-режим через localStorage (для тестирования без iframe)
+        function setupLocalStorageConnection() {
+            // Создаем скрытый iframe для связи с сервером
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = SERVER_URL;
+            document.body.appendChild(iframe);
             
-            const message = {
-                type: 'message',
-                sender: '🖥️ Сервер',
-                text: text,
-                timestamp: Date.now(),
-                isServer: true
+            serverWindow = iframe.contentWindow;
+            
+            // Ждем загрузки iframe
+            iframe.onload = () => {
+                setupPostMessage();
+                sendToServer({ type: 'REGISTER_CLIENT' });
             };
-            
-            addMessage('🖥️ Сервер (вы)', text, true);
-            broadcastToClients(message);
-            input.value = '';
         }
         
-        // Инициализация WebSocket сервера (в браузере!)
-        function initWebSocketServer() {
-            // Создаем WebSocket сервер через Service Worker
-            // Используем WebSocket API браузера как сервер
-            if (window.WebSocketServer) {
-                webSocketServer = new WebSocketServer();
+        // Вызовы API сервера
+        function attackEnemy(enemyId) {
+            if (!connected) {
+                showToast("Нет подключения к серверу");
                 return;
             }
-            
-            // Альтернатива: используем BroadcastChannel для эмуляции
-            // Но для реального WebSocket нужно запускать настоящий сервер
-            alert('⚠️ Внимание! Для работы WebSocket сервера в браузере необходим специальный сервер.\n\n' +
-                  'Рекомендуется:\n' +
-                  '1. Запустить этот файл на локальном сервере (localhost)\n' +
-                  '2. Использовать Node.js с WebSocket библиотекой\n' +
-                  '3. Или использовать бесплатный хостинг с WebSocket поддержкой\n\n' +
-                  'Для демонстрации работает в режиме симуляции.');
-            
-            // Демо-режим
-            simulateServer();
+            sendToServer({ type: 'ATTACK_ENEMY', enemyId });
         }
         
-        // Симуляция сервера для демо (чтобы показать функционал)
-        function simulateServer() {
-            addMessage('🖥️ Система', '⚠️ Работаю в демо-режиме. Для реального WebSocket сервера нужен Node.js', true);
-            
-            // Имитируем подключение тестового клиента
-            setTimeout(() => {
-                const testClient = {
-                    id: 'demo_' + Math.random().toString(36).substr(2, 9),
-                    name: 'Демо-клиент',
-                    connectedAt: Date.now()
-                };
-                clients.set(testClient.id, { ...testClient, ws: null });
-                updateClientsList();
-                addMessage('🖥️ Система', `✅ ${testClient.name} подключился (демо-режим)`, true);
-            }, 2000);
+        function upgradeMemory() {
+            if (!connected) return;
+            sendToServer({ type: 'UPGRADE_MEMORY' });
         }
         
-        // Escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function activateShield() {
+            if (!connected) return;
+            sendToServer({ type: 'ACTIVATE_SHIELD' });
         }
         
-        // Обработка входящих сообщений (для реального WebSocket)
-        function handleClientMessage(clientId, data) {
-            try {
-                const msg = JSON.parse(data);
-                if (msg.type === 'message') {
-                    const client = clients.get(clientId);
-                    addMessage(client.name, msg.text);
-                    broadcastToClients({
-                        type: 'message',
-                        sender: client.name,
-                        text: msg.text,
-                        timestamp: Date.now()
-                    }, clients.get(clientId).ws);
+        function restoreNanobots() {
+            if (!connected) return;
+            sendToServer({ type: 'RESTORE_NANOBOTS' });
+        }
+        
+        function resetGame() {
+            if (!connected) return;
+            sendToServer({ type: 'RESET_GAME' });
+            document.getElementById('gameOverlay').style.display = 'none';
+        }
+        
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '100px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = 'rgba(0,0,0,0.9)';
+            toast.style.color = '#0ff';
+            toast.style.padding = '8px 16px';
+            toast.style.borderRadius = '30px';
+            toast.style.border = '1px solid #0ff';
+            toast.style.zIndex = '400';
+            toast.style.fontSize = '0.7rem';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+        
+        // ==================== 3D ВИЗУАЛИЗАЦИЯ ====================
+        const canvas = document.getElementById('gameCanvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x010118);
+        scene.fog = new THREE.FogExp2(0x010118, 0.012);
+        
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(10, 6, 12);
+        
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+        mainLight.position.set(5, 10, 7);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+        const fillLight = new THREE.PointLight(0x3366ff, 0.4);
+        fillLight.position.set(-3, 2, 4);
+        scene.add(fillLight);
+        
+        // Пол
+        const gridHelper = new THREE.GridHelper(28, 20, 0x00ffcc, 0x3366aa);
+        gridHelper.position.y = -0.8;
+        scene.add(gridHelper);
+        
+        // Центральное ядро
+        const coreGeo = new THREE.SphereGeometry(1.3, 64, 64);
+        const coreMat = new THREE.MeshStandardMaterial({ color: 0x33aaff, emissive: 0x1166aa, emissiveIntensity: 0.7 });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreMesh.castShadow = true;
+        scene.add(coreMesh);
+        
+        // Аура
+        const auraGeo = new THREE.SphereGeometry(1.7, 32, 32);
+        const auraMat = new THREE.MeshBasicMaterial({ color: 0x33aaff, transparent: true, opacity: 0.25 });
+        const auraMesh = new THREE.Mesh(auraGeo, auraMat);
+        scene.add(auraMesh);
+        
+        // Враги 3D
+        let enemyMeshes = new Map();
+        
+        function update3DEnemies(enemies) {
+            // Удаляем старых врагов
+            enemyMeshes.forEach((mesh, id) => {
+                if (!enemies.find(e => e.id == id)) {
+                    scene.remove(mesh);
+                    enemyMeshes.delete(id);
                 }
-            } catch (e) {
-                console.error('Ошибка обработки сообщения:', e);
+            });
+            
+            // Добавляем/обновляем врагов
+            enemies.forEach(enemy => {
+                let mesh = enemyMeshes.get(enemy.id);
+                if (!mesh) {
+                    const geometry = new THREE.BoxGeometry(enemy.size || 0.7, enemy.size || 0.7, enemy.size || 0.7);
+                    const material = new THREE.MeshStandardMaterial({ color: enemy.color || 0xff5577, emissive: 0x331100 });
+                    mesh = new THREE.Mesh(geometry, material);
+                    mesh.castShadow = true;
+                    scene.add(mesh);
+                    enemyMeshes.set(enemy.id, mesh);
+                }
+                mesh.position.set(enemy.x, enemy.y, enemy.z);
+                
+                // Цвет в зависимости от HP
+                const hpPercent = enemy.hp / enemy.maxHp;
+                if (hpPercent < 0.3) mesh.material.color.setHex(0xff6666);
+                else if (hpPercent < 0.6) mesh.material.color.setHex(0xffaa66);
+                else mesh.material.color.setHex(enemy.color || 0xff5577);
+            });
+        }
+        
+        // Анимация
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+            
+            // Вращение камеры
+            camera.position.x = 11 * Math.sin(time * 0.12);
+            camera.position.z = 11 * Math.cos(time * 0.12);
+            camera.lookAt(0, 0.5, 0);
+            
+            // Анимация ядра
+            const energyPercent = currentState ? currentState.coreEnergy / 100 : 0.5;
+            coreMesh.material.emissiveIntensity = 0.4 + energyPercent * 0.8;
+            auraMesh.scale.setScalar(1 + Math.sin(time * 3) * 0.05);
+            
+            if (currentState && currentState.shieldsActive) {
+                auraMat.opacity = 0.6;
+                auraMat.color.setHex(0x88ffaa);
+            } else {
+                auraMat.opacity = 0.25;
+                auraMat.color.setHex(0x33aaff);
             }
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // ==================== UI ОБНОВЛЕНИЕ ====================
+        function updateUI() {
+            if (!currentState) return;
+            document.getElementById('coreEnergy').innerHTML = Math.floor(currentState.coreEnergy) + '%';
+            document.getElementById('nanoBots').innerHTML = Math.floor(currentState.nanoBots);
+            document.getElementById('score').innerHTML = currentState.score;
+            document.getElementById('wave').innerHTML = currentState.wave || 1;
+            
+            // Изменение цвета при низкой энергии
+            const energyEl = document.getElementById('coreEnergy');
+            if (currentState.coreEnergy < 30) energyEl.style.color = '#ff6666';
+            else if (currentState.coreEnergy < 60) energyEl.style.color = '#ffaa66';
+            else energyEl.style.color = '#0ff';
         }
         
-        // Обработка нового подключения
-        function handleNewConnection(ws, clientId, clientName) {
-            clients.set(clientId, {
-                ws: ws,
-                name: clientName,
-                connectedAt: Date.now()
-            });
-            
-            updateClientsList();
-            addMessage('🖥️ Система', `✅ ${clientName} подключился к серверу`, true);
-            
-            // Отправляем историю новому клиенту
-            ws.send(JSON.stringify({
-                type: 'connected',
-                serverKey: SERVER_KEY,
-                message: 'Подключение успешно!'
-            }));
-            
-            // Уведомляем всех о новом клиенте
-            broadcastToClients({
-                type: 'system',
-                text: `${clientName} присоединился к чату`,
-                timestamp: Date.now()
-            }, ws);
+        function showGameOver() {
+            document.getElementById('gameOverlay').style.display = 'block';
         }
         
-        // Инструкция для использования
-        window.addEventListener('load', () => {
-            addMessage('🖥️ Сервер', 'Чат-сервер запущен!', true);
-            addMessage('🖥️ Сервер', `Ключ сервера: ${SERVER_KEY}`, true);
-            addMessage('🖥️ Сервер', 'Скопируйте ключ и используйте в клиентском приложении для подключения', true);
+        // ==================== ОБРАБОТЧИКИ КАСАНИЙ (мобильные) ====================
+        function showTapEffect(x, y) {
+            const indicator = document.createElement('div');
+            indicator.className = 'tap-indicator';
+            indicator.style.left = x + 'px';
+            indicator.style.top = y + 'px';
+            document.body.appendChild(indicator);
+            setTimeout(() => indicator.remove(), 400);
+        }
+        
+        // Получение координат касания для Raycaster
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        canvas.addEventListener('click', (e) => {
+            if (!currentState || currentState.gameOver) return;
             
-            initWebSocketServer();
-        });
-        
-        // Экспорт для глобального использования
-        window.sendToAll = sendToAll;
-        window.copyKey = copyKey;
-        
-        // Инструкция по запуску настоящего WebSocket сервера
-        console.log(`
-        🚀 Для запуска настоящего WebSocket сервера:
-        
-        1. Установите Node.js
-        2. Создайте файл server.js:
-        
-        const WebSocket = require('ws');
-        const server = new WebSocket.Server({ port: 8080 });
-        
-        server.on('connection', ws => {
-            ws.on('message', message => {
-                server.clients.forEach(client => {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(message);
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            showTapEffect(e.clientX, e.clientY);
+            
+            // Нормализованные координаты для Raycaster
+            mouse.x = (x / rect.width) * 2 - 1;
+            mouse.y = -(y / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Array.from(enemyMeshes.values()));
+            
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                let hitEnemyId = null;
+                for (let [id, mesh] of enemyMeshes) {
+                    if (mesh === hitMesh) {
+                        hitEnemyId = id;
+                        break;
                     }
-                });
-            });
+                }
+                if (hitEnemyId) {
+                    attackEnemy(hitEnemyId);
+                    showToast("💥 АТАКА!");
+                }
+            } else {
+                showToast("🎯 Промах! Цельтесь во врага");
+            }
         });
         
-        3. Запустите: node server.js
-        4. Обновите URL подключения в клиенте
+        // Touch events для мобильных
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!currentState || currentState.gameOver) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            showTapEffect(touch.clientX, touch.clientY);
+            
+            mouse.x = (x / rect.width) * 2 - 1;
+            mouse.y = -(y / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Array.from(enemyMeshes.values()));
+            
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                let hitEnemyId = null;
+                for (let [id, mesh] of enemyMeshes) {
+                    if (mesh === hitMesh) {
+                        hitEnemyId = id;
+                        break;
+                    }
+                }
+                if (hitEnemyId) {
+                    attackEnemy(hitEnemyId);
+                    showToast("💥 АТАКА!");
+                }
+            }
+        }, { passive: false });
         
-        Или используйте бесплатные сервисы: Glitch, Render, Heroku
-        `);
+        // Кнопки управления
+        document.getElementById('btnUpgrade').addEventListener('click', () => upgradeMemory());
+        document.getElementById('btnShield').addEventListener('click', () => activateShield());
+        document.getElementById('btnRepair').addEventListener('click', () => restoreNanobots());
+        document.getElementById('btnReset').addEventListener('click', () => resetGame());
+        document.getElementById('restartBtn').addEventListener('click', () => resetGame());
+        
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Запуск подключения
+        initConnection();
+        
+        // Демо-данные для отображения до подключения
+        setTimeout(() => {
+            if (!connected) {
+                document.getElementById('connStatus').innerHTML = '⚠️ ОЖИДАНИЕ СЕРВЕРА...';
+            }
+        }, 3000);
     </script>
 </body>
 </html>
