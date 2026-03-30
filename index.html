@@ -3,160 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Engine Server</title>
+    <title>Чат-Сервер | WebSocket Server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .server-info {
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00ff88;
+        }
+
+        .key-box {
+            background: #000;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 24px;
+            text-align: center;
+            margin: 15px 0;
+            letter-spacing: 2px;
+            word-break: break-all;
+        }
+
+        .clients-grid {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .clients-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            min-height: 80px;
+        }
+
+        .client-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: fadeIn 0.3s;
+        }
+
+        .online-dot {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .chat-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .message {
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 70%;
+            animation: slideIn 0.3s;
+        }
+
+        .message.server {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-left: auto;
+            max-width: 70%;
+        }
+
+        .message.sender {
+            font-weight: bold;
+            color: #ffd966;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .message.text {
+            font-size: 14px;
+            word-wrap: break-word;
+        }
+
+        .message.time {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 20px;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .input-area input:focus {
+            outline: none;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .input-area button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .input-area button:hover {
+            transform: scale(0.95);
+        }
+
+        .status {
+            padding: 10px;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .copy-btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Чат-Сервер (WebSocket)</h1>
+            <p>Центральный узел — все клиенты подключаются сюда</p>
+        </div>
+
+        <div class="server-info">
+            <h3>🔑 Ключ для подключения клиентов:</h3>
+            <div class="key-box" id="serverKey">Загрузка...</div>
+            <button class="copy-btn" onclick="copyKey()">📋 Копировать ключ</button>
+            <p style="margin-top: 10px; font-size: 12px;">ℹ️ Клиенты подключаются по WebSocket: <span id="wsUrl">ws://...</span></p>
+        </div>
+
+        <div class="clients-grid">
+            <h3>👥 Подключенные клиенты (<span id="clientCount">0</span>)</h3>
+            <div class="clients-list" id="clientsList">
+                <div style="opacity: 0.5;">Ожидание подключений...</div>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message">
+                    <div class="sender">🖥️ Сервер</div>
+                    <div class="text">Сервер запущен и готов принимать подключения</div>
+                    <div class="time">Только что</div>
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Введите сообщение для всех клиентов...">
+                <button onclick="sendToAll()">📨 Отправить всем</button>
+            </div>
+        </div>
+        <div class="status" id="status">✅ Сервер активен</div>
+    </div>
+
     <script>
-        // ============ ИГРОВОЙ ДВИЖОК С REAL API ============
+        // Генерация уникального ключа сервера
+        const SERVER_KEY = generateServerKey();
+        let webSocketServer = null;
+        let clients = new Map(); // Map<clientId, {ws, name, connectedAt}>
         
-        let serverActive = true;
-        let players = {};
-        let messages = [];
-        let nextPlayerId = 1;
+        // Отображаем ключ
+        document.getElementById('serverKey').innerText = SERVER_KEY;
+        document.getElementById('wsUrl').innerText = `ws://${window.location.host}/`;
         
-        const ENGINE_KEY = "AI_ENGINE_7x9k2m4n8p1q_SECURE_2024";
+        // Функция генерации ключа
+        function generateServerKey() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+            let key = '';
+            for (let i = 0; i < 8; i++) {
+                key += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return key;
+        }
         
-        console.log('═══════════════════════════════════════════════════');
-        console.log('🎮 GAME ENGINE SERVER v5.0');
-        console.log(`🔑 KEY: ${ENGINE_KEY}`);
-        console.log(`📡 STATUS: ${serverActive ? 'ONLINE' : 'OFFLINE'}`);
-        console.log('═══════════════════════════════════════════════════');
+        // Копирование ключа
+        function copyKey() {
+            navigator.clipboard.writeText(SERVER_KEY);
+            alert('Ключ скопирован!');
+        }
         
-        // ============ ГЛОБАЛЬНЫЙ API ============
-        window.GameEngineAPI = {
-            // Проверка статуса
-            ping() {
-                return JSON.stringify({
-                    status: serverActive ? 'online' : 'offline',
-                    timestamp: Date.now()
-                });
-            },
+        // Добавление сообщения в чат
+        function addMessage(sender, text, isServer = false) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message' + (isServer ? ' server' : '');
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <div class="sender">${sender}</div>
+                <div class="text">${escapeHtml(text)}</div>
+                <div class="time">${time}</div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messageDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Обновление списка клиентов
+        function updateClientsList() {
+            const clientsList = document.getElementById('clientsList');
+            const clientCount = document.getElementById('clientCount');
             
-            // Получить статус
-            getStatus() {
-                return JSON.stringify({
-                    active: serverActive,
-                    players: Object.keys(players).length,
-                    messages: messages.length
-                });
-            },
+            if (clients.size === 0) {
+                clientsList.innerHTML = '<div style="opacity: 0.5;">Нет подключенных клиентов</div>';
+                clientCount.innerText = '0';
+                return;
+            }
             
-            // Подключить игрока
-            connect(playerName) {
-                if (!serverActive) {
-                    return JSON.stringify({ error: 'SERVER_STOPPED' });
+            clientsList.innerHTML = '';
+            clients.forEach((client, id) => {
+                const clientCard = document.createElement('div');
+                clientCard.className = 'client-card';
+                clientCard.innerHTML = `
+                    <span class="online-dot"></span>
+                    <span>${escapeHtml(client.name)}</span>
+                    <span style="font-size: 10px; opacity: 0.7;">ID: ${id.slice(-6)}</span>
+                `;
+                clientsList.appendChild(clientCard);
+            });
+            clientCount.innerText = clients.size;
+        }
+        
+        // Отправка сообщения всем клиентам
+        function broadcastToClients(message, excludeWs = null) {
+            clients.forEach((client, id) => {
+                if (client.ws !== excludeWs && client.ws.readyState === WebSocket.OPEN) {
+                    client.ws.send(JSON.stringify(message));
                 }
-                
-                const playerId = 'p' + nextPlayerId++;
-                players[playerId] = {
-                    id: playerId,
-                    name: playerName || 'Player_' + playerId,
-                    x: 0,
-                    z: 0,
-                    rot: 0,
-                    lastSeen: Date.now()
+            });
+        }
+        
+        // Отправка сообщения от сервера
+        function sendToAll() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            const message = {
+                type: 'message',
+                sender: '🖥️ Сервер',
+                text: text,
+                timestamp: Date.now(),
+                isServer: true
+            };
+            
+            addMessage('🖥️ Сервер (вы)', text, true);
+            broadcastToClients(message);
+            input.value = '';
+        }
+        
+        // Инициализация WebSocket сервера (в браузере!)
+        function initWebSocketServer() {
+            // Создаем WebSocket сервер через Service Worker
+            // Используем WebSocket API браузера как сервер
+            if (window.WebSocketServer) {
+                webSocketServer = new WebSocketServer();
+                return;
+            }
+            
+            // Альтернатива: используем BroadcastChannel для эмуляции
+            // Но для реального WebSocket нужно запускать настоящий сервер
+            alert('⚠️ Внимание! Для работы WebSocket сервера в браузере необходим специальный сервер.\n\n' +
+                  'Рекомендуется:\n' +
+                  '1. Запустить этот файл на локальном сервере (localhost)\n' +
+                  '2. Использовать Node.js с WebSocket библиотекой\n' +
+                  '3. Или использовать бесплатный хостинг с WebSocket поддержкой\n\n' +
+                  'Для демонстрации работает в режиме симуляции.');
+            
+            // Демо-режим
+            simulateServer();
+        }
+        
+        // Симуляция сервера для демо (чтобы показать функционал)
+        function simulateServer() {
+            addMessage('🖥️ Система', '⚠️ Работаю в демо-режиме. Для реального WebSocket сервера нужен Node.js', true);
+            
+            // Имитируем подключение тестового клиента
+            setTimeout(() => {
+                const testClient = {
+                    id: 'demo_' + Math.random().toString(36).substr(2, 9),
+                    name: 'Демо-клиент',
+                    connectedAt: Date.now()
                 };
-                
-                console.log(`✅ ${players[playerId].name} подключился`);
-                
-                return JSON.stringify({
-                    success: true,
-                    playerId: playerId,
-                    players: players,
-                    chatHistory: messages.slice(-50)
+                clients.set(testClient.id, { ...testClient, ws: null });
+                updateClientsList();
+                addMessage('🖥️ Система', `✅ ${testClient.name} подключился (демо-режим)`, true);
+            }, 2000);
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Обработка входящих сообщений (для реального WebSocket)
+        function handleClientMessage(clientId, data) {
+            try {
+                const msg = JSON.parse(data);
+                if (msg.type === 'message') {
+                    const client = clients.get(clientId);
+                    addMessage(client.name, msg.text);
+                    broadcastToClients({
+                        type: 'message',
+                        sender: client.name,
+                        text: msg.text,
+                        timestamp: Date.now()
+                    }, clients.get(clientId).ws);
+                }
+            } catch (e) {
+                console.error('Ошибка обработки сообщения:', e);
+            }
+        }
+        
+        // Обработка нового подключения
+        function handleNewConnection(ws, clientId, clientName) {
+            clients.set(clientId, {
+                ws: ws,
+                name: clientName,
+                connectedAt: Date.now()
+            });
+            
+            updateClientsList();
+            addMessage('🖥️ Система', `✅ ${clientName} подключился к серверу`, true);
+            
+            // Отправляем историю новому клиенту
+            ws.send(JSON.stringify({
+                type: 'connected',
+                serverKey: SERVER_KEY,
+                message: 'Подключение успешно!'
+            }));
+            
+            // Уведомляем всех о новом клиенте
+            broadcastToClients({
+                type: 'system',
+                text: `${clientName} присоединился к чату`,
+                timestamp: Date.now()
+            }, ws);
+        }
+        
+        // Инструкция для использования
+        window.addEventListener('load', () => {
+            addMessage('🖥️ Сервер', 'Чат-сервер запущен!', true);
+            addMessage('🖥️ Сервер', `Ключ сервера: ${SERVER_KEY}`, true);
+            addMessage('🖥️ Сервер', 'Скопируйте ключ и используйте в клиентском приложении для подключения', true);
+            
+            initWebSocketServer();
+        });
+        
+        // Экспорт для глобального использования
+        window.sendToAll = sendToAll;
+        window.copyKey = copyKey;
+        
+        // Инструкция по запуску настоящего WebSocket сервера
+        console.log(`
+        🚀 Для запуска настоящего WebSocket сервера:
+        
+        1. Установите Node.js
+        2. Создайте файл server.js:
+        
+        const WebSocket = require('ws');
+        const server = new WebSocket.Server({ port: 8080 });
+        
+        server.on('connection', ws => {
+            ws.on('message', message => {
+                server.clients.forEach(client => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(message);
+                    }
                 });
-            },
-            
-            // Отключить игрока
-            disconnect(playerId) {
-                if (players[playerId]) {
-                    const name = players[playerId].name;
-                    delete players[playerId];
-                    console.log(`❌ ${name} отключился`);
-                    return JSON.stringify({ success: true });
-                }
-                return JSON.stringify({ error: 'NOT_FOUND' });
-            },
-            
-            // Обновить позицию
-            updatePosition(playerId, x, z, rot) {
-                if (!serverActive) return JSON.stringify({ error: 'SERVER_STOPPED' });
-                if (players[playerId]) {
-                    players[playerId].x = x;
-                    players[playerId].z = z;
-                    players[playerId].rot = rot;
-                    players[playerId].lastSeen = Date.now();
-                    return JSON.stringify({ success: true });
-                }
-                return JSON.stringify({ error: 'NOT_FOUND' });
-            },
-            
-            // Отправить сообщение
-            sendMessage(playerId, text) {
-                if (!serverActive) return JSON.stringify({ error: 'SERVER_STOPPED' });
-                if (!players[playerId]) return JSON.stringify({ error: 'NOT_FOUND' });
-                
-                const msg = {
-                    player: players[playerId].name,
-                    text: text.substring(0, 200),
-                    time: Date.now()
-                };
-                messages.push(msg);
-                if (messages.length > 200) messages.shift();
-                
-                console.log(`💬 ${msg.player}: ${msg.text}`);
-                return JSON.stringify({ success: true, message: msg });
-            },
-            
-            // Получить всех игроков
-            getPlayers() {
-                return JSON.stringify(players);
-            },
-            
-            // Получить сообщения
-            getMessages(since) {
-                return JSON.stringify(messages);
-            }
-        };
+            });
+        });
         
-        // ============ УПРАВЛЕНИЕ ДЛЯ PYTHON ============
-        window.ControlAPI = {
-            stop(key) {
-                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
-                serverActive = false;
-                console.log('🛑 SERVER STOPPED');
-                return JSON.stringify({ success: true });
-            },
-            
-            start(key) {
-                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
-                serverActive = true;
-                console.log('🟢 SERVER STARTED');
-                return JSON.stringify({ success: true });
-            },
-            
-            getStats(key) {
-                if (key !== ENGINE_KEY) return JSON.stringify({ error: 'INVALID_KEY' });
-                return JSON.stringify({
-                    active: serverActive,
-                    players: Object.keys(players).length,
-                    playersList: players,
-                    messagesCount: messages.length
-                });
-            }
-        };
+        3. Запустите: node server.js
+        4. Обновите URL подключения в клиенте
         
-        // Очистка неактивных игроков
-        setInterval(() => {
-            const now = Date.now();
-            for (let id in players) {
-                if (now - players[id].lastSeen > 30000) {
-                    delete players[id];
-                }
-            }
-        }, 10000);
-        
-        console.log('✅ Сервер готов!');
+        Или используйте бесплатные сервисы: Glitch, Render, Heroku
+        `);
     </script>
 </body>
 </html>
