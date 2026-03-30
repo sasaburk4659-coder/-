@@ -2,272 +2,192 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Server Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mini App Controller</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        * {
             margin: 0;
-            padding: 20px;
-            color: #fff;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.1);
+            background: white;
             border-radius: 20px;
             padding: 30px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
         }
+
         h1 {
-            text-align: center;
-            margin-bottom: 30px;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
         }
+
         .status {
-            text-align: center;
-            padding: 20px;
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 12px;
             margin: 20px 0;
-            border-radius: 10px;
-            background: rgba(0, 0, 0, 0.3);
+            font-size: 14px;
+            color: #666;
         }
-        .online {
-            color: #4caf50;
-            font-weight: bold;
+
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
-        .offline {
-            color: #f44336;
-            font-weight: bold;
+
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
-        .connections {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .connection-item {
-            background: rgba(255, 255, 255, 0.1);
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-        }
-        .messages {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-            height: 300px;
-            overflow-y: auto;
-        }
-        .message {
-            margin: 5px 0;
-            padding: 5px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .timestamp {
-            color: #888;
-            font-size: 0.8em;
-        }
-        input, button {
-            padding: 10px;
-            margin: 5px;
-            border: none;
-            border-radius: 5px;
-        }
+
         button {
-            background: #4caf50;
+            background: #667eea;
             color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, background 0.2s;
+            margin: 10px;
+            font-weight: 600;
         }
+
         button:hover {
-            transform: scale(1.05);
+            background: #5a67d8;
+            transform: scale(1.02);
         }
+
         button:active {
-            transform: scale(0.95);
+            transform: scale(0.98);
         }
-        .broadcast-area {
+
+        button.remove {
+            background: #dc3545;
+        }
+
+        button.remove:hover {
+            background: #c82333;
+        }
+
+        .info {
             margin-top: 20px;
-            text-align: center;
+            font-size: 12px;
+            color: #888;
         }
-        .broadcast-area input {
-            width: 70%;
-            background: rgba(255, 255, 255, 0.9);
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 WebSocket Server Engine</h1>
+        <h1>📱 Mini App Manager</h1>
         
-        <div class="status">
-            <h3>Server Status: <span id="serverStatus" class="offline">OFFLINE</span></h3>
-            <p>Server URL: <strong id="serverUrl"></strong></p>
-            <button onclick="startServer()">▶ Start Server</button>
-            <button onclick="stopServer()">⏹ Stop Server</button>
+        <div id="status" class="status">
+            Загрузка статуса...
         </div>
-
-        <div class="connections">
-            <h3>📡 Active Connections: <span id="connectionCount">0</span></h3>
-            <div id="connectionsList"></div>
+        
+        <div>
+            <button id="removeBtn" class="remove">🗑️ Убрать мини-приложение</button>
         </div>
-
-        <div class="broadcast-area">
-            <h3>📢 Broadcast Message to All Clients</h3>
-            <input type="text" id="broadcastMessage" placeholder="Enter message to broadcast...">
-            <button onclick="broadcastMessage()">Send Broadcast</button>
-        </div>
-
-        <div class="messages">
-            <h3>📝 Server Log</h3>
-            <div id="messages"></div>
+        
+        <div class="info">
+            <p>⚠️ Нажмите кнопку выше, чтобы скрыть приложение</p>
+            <p>🔄 Для возврата используйте команду /start в боте</p>
         </div>
     </div>
 
     <script>
-        let server = null;
-        let clients = new Map();
-        let clientId = 0;
-
-        function addMessage(text, type = 'info') {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
-            const timestamp = new Date().toLocaleTimeString();
-            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${text}`;
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function updateConnectionCount() {
-            document.getElementById('connectionCount').textContent = clients.size;
-            const connectionsList = document.getElementById('connectionsList');
-            connectionsList.innerHTML = '';
-            clients.forEach((client, id) => {
-                const connDiv = document.createElement('div');
-                connDiv.className = 'connection-item';
-                connDiv.innerHTML = `Client ${id} - ${client.url || 'Unknown'}`;
-                connectionsList.appendChild(connDiv);
-            });
-        }
-
-        function startServer() {
-            if (server) {
-                addMessage('Server is already running!', 'error');
-                return;
-            }
-
+        const API_URL = 'https://YOUR_PYTHON_SERVER.com/api'; // Замените на адрес вашего Python сервера
+        
+        async function getStatus() {
             try {
-                server = new WebSocketServer();
-                server.on('connection', (client) => {
-                    const id = ++clientId;
-                    clients.set(id, client);
-                    addMessage(`✅ New client connected! ID: ${id}`, 'success');
-                    updateConnectionCount();
-                    
-                    client.on('message', (data) => {
-                        addMessage(`📨 Message from Client ${id}: ${data}`, 'message');
-                        // Echo back to client
-                        client.send(`Server received: ${data}`);
-                    });
-                    
-                    client.on('close', () => {
-                        clients.delete(id);
-                        addMessage(`❌ Client ${id} disconnected`, 'error');
-                        updateConnectionCount();
-                    });
-                    
-                    client.send(`Welcome! You are client #${id}`);
-                });
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+                const statusDiv = document.getElementById('status');
                 
-                document.getElementById('serverStatus').className = 'online';
-                document.getElementById('serverStatus').textContent = 'ONLINE';
-                document.getElementById('serverUrl').textContent = window.location.href;
-                addMessage('🚀 Server started successfully!', 'success');
+                if (data.active) {
+                    statusDiv.textContent = '✅ Приложение активно и доступно';
+                    statusDiv.className = 'status active';
+                } else {
+                    statusDiv.textContent = '❌ Приложение скрыто. Используйте /start в боте для возврата';
+                    statusDiv.className = 'status inactive';
+                }
             } catch (error) {
-                addMessage(`Failed to start server: ${error.message}`, 'error');
+                console.error('Ошибка получения статуса:', error);
+                document.getElementById('status').textContent = '⚠️ Не удалось подключиться к серверу';
             }
         }
-
-        function stopServer() {
-            if (server) {
-                // Close all client connections
-                clients.forEach((client, id) => {
-                    try {
-                        client.close();
-                    } catch(e) {}
+        
+        async function removeApp() {
+            const btn = document.getElementById('removeBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Отправка... <span class="loading"></span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_URL}/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
                 });
-                clients.clear();
-                server.close();
-                server = null;
-                document.getElementById('serverStatus').className = 'offline';
-                document.getElementById('serverStatus').textContent = 'OFFLINE';
-                addMessage('🛑 Server stopped', 'error');
-                updateConnectionCount();
-            }
-        }
-
-        function broadcastMessage() {
-            const message = document.getElementById('broadcastMessage').value;
-            if (!message) {
-                addMessage('Please enter a message to broadcast', 'error');
-                return;
-            }
-            
-            if (clients.size === 0) {
-                addMessage('No clients connected to broadcast to', 'error');
-                return;
-            }
-            
-            clients.forEach((client, id) => {
-                try {
-                    client.send(`📢 BROADCAST: ${message}`);
-                } catch(e) {
-                    addMessage(`Failed to send to client ${id}: ${e.message}`, 'error');
-                }
-            });
-            addMessage(`📢 Broadcasted to ${clients.size} clients: "${message}"`, 'success');
-            document.getElementById('broadcastMessage').value = '';
-        }
-
-        // Simple WebSocket Server implementation using browser's WebSocket (for demo purposes)
-        // Note: This is a simplified version. In production, you'd need a real WebSocket server
-        class WebSocketServer {
-            constructor() {
-                this.clients = new Set();
-                this.eventHandlers = {};
                 
-                // Create a WebSocket server using a shared worker or service worker
-                // For demo, we'll create a WebSocket that listens for connections
-                try {
-                    this.ws = new WebSocket('wss://echo.websocket.org'); // Placeholder
-                    this.setupMockServer();
-                } catch(e) {
-                    console.error('WebSocket server requires a real server implementation');
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Приложение успешно скрыто! Используйте /start в боте для возврата.');
+                    await getStatus();
+                } else {
+                    alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
                 }
-            }
-            
-            setupMockServer() {
-                // Mock server for demo purposes
-                addMessage('⚠️ Note: This is a demo server. For real WebSocket server, use Node.js or Python WebSocket server.', 'error');
-            }
-            
-            on(event, callback) {
-                this.eventHandlers[event] = callback;
-            }
-            
-            close() {
-                if (this.ws) {
-                    this.ws.close();
-                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('❌ Ошибка подключения к серверу');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
-
-        // Display server info
-        document.getElementById('serverUrl').textContent = window.location.href;
-        addMessage('Server engine loaded. Click "Start Server" to begin accepting connections', 'info');
+        
+        document.getElementById('removeBtn').addEventListener('click', removeApp);
+        
+        // Проверяем статус при загрузке и каждые 5 секунд
+        getStatus();
+        setInterval(getStatus, 5000);
     </script>
 </body>
 </html>
