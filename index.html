@@ -3,191 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Mini App Controller</title>
+    <title>Хранители Кристалла - Многопользовательская 3D Игра</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
         }
-
+        
         .container {
-            background: white;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            padding: 40px;
             border-radius: 20px;
-            padding: 30px;
-            max-width: 400px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border: 2px solid #ffaa44;
+            max-width: 500px;
+            width: 90%;
             text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
-
+        
         h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
+            color: #ffaa44;
+            margin-bottom: 10px;
+            font-size: 28px;
         }
-
-        .status {
-            background: #f0f0f0;
-            padding: 15px;
-            border-radius: 12px;
-            margin: 20px 0;
+        
+        .subtitle {
+            color: #aaa;
+            margin-bottom: 30px;
             font-size: 14px;
-            color: #666;
         }
-
-        .status.active {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.inactive {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        button {
-            background: #667eea;
+        
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            background: rgba(30,30,40,0.9);
+            border: 1px solid #ffaa44;
             color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 16px;
             border-radius: 10px;
+            font-size: 16px;
+        }
+        
+        button {
+            background: #ffaa44;
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            margin: 10px;
-            font-weight: 600;
+            margin-top: 15px;
+            width: 100%;
+            transition: 0.3s;
         }
-
+        
         button:hover {
-            background: #5a67d8;
             transform: scale(1.02);
+            background: #ffcc66;
         }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        button.remove {
-            background: #dc3545;
-        }
-
-        button.remove:hover {
-            background: #c82333;
-        }
-
-        .info {
+        
+        .server-info {
             margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
             font-size: 12px;
-            color: #888;
+            color: #88ff88;
         }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 10px;
-            vertical-align: middle;
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        
+        .status.online {
+            background: rgba(0,255,0,0.2);
+            color: #0f0;
+        }
+        
+        .status.offline {
+            background: rgba(255,0,0,0.2);
+            color: #f00;
+        }
+        
+        .players-online {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #ffaa44;
+        }
+        
+        a {
+            color: #ffaa44;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📱 Mini App Manager</h1>
+        <h1>🎮 Хранители Кристалла</h1>
+        <div class="subtitle">Многопользовательское 3D приключение</div>
         
-        <div id="status" class="status">
-            Загрузка статуса...
+        <input type="text" id="server-address" placeholder="ws://localhost:8765" value="ws://localhost:8765">
+        <input type="text" id="player-name" placeholder="Ваш никнейм" maxlength="20">
+        <button id="connect-btn">🔌 Подключиться к игре</button>
+        
+        <div class="server-info" id="server-info">
+            🔍 Поиск серверов...
         </div>
         
-        <div>
-            <button id="removeBtn" class="remove">🗑️ Убрать мини-приложение</button>
-        </div>
+        <div id="status" class="status offline">⚫ Не подключено</div>
+        <div id="players-online" class="players-online">👥 Игроков онлайн: 0</div>
         
-        <div class="info">
-            <p>⚠️ Нажмите кнопку выше, чтобы скрыть приложение</p>
-            <p>🔄 Для возврата используйте команду /start в боте</p>
+        <div style="margin-top: 20px; font-size: 11px; color: #666;">
+            💡 Запустите server.py на вашем ПК, затем введите его адрес
         </div>
     </div>
-
+    
     <script>
-        const API_URL = 'https://YOUR_PYTHON_SERVER.com/api'; // Замените на адрес вашего Python сервера
-        
-        async function getStatus() {
-            try {
-                const response = await fetch(`${API_URL}/status`);
-                const data = await response.json();
-                const statusDiv = document.getElementById('status');
-                
-                if (data.active) {
-                    statusDiv.textContent = '✅ Приложение активно и доступно';
-                    statusDiv.className = 'status active';
-                } else {
-                    statusDiv.textContent = '❌ Приложение скрыто. Используйте /start в боте для возврата';
-                    statusDiv.className = 'status inactive';
-                }
-            } catch (error) {
-                console.error('Ошибка получения статуса:', error);
-                document.getElementById('status').textContent = '⚠️ Не удалось подключиться к серверу';
-            }
-        }
-        
-        async function removeApp() {
-            const btn = document.getElementById('removeBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Отправка... <span class="loading"></span>';
-            btn.disabled = true;
+        // Автоматический поиск сервера
+        async function findServer() {
+            const serverInfo = document.getElementById('server-info');
+            const localIp = window.location.hostname;
             
-            try {
-                const response = await fetch(`${API_URL}/remove`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+            // Пробуем разные порты
+            const ports = [5000, 8080, 3000];
+            
+            for (const port of ports) {
+                try {
+                    const response = await fetch(`http://${localIp}:${port}/api/server-info`, {
+                        timeout: 2000
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        serverInfo.innerHTML = `
+                            ✅ Найден сервер!<br>
+                            📡 Адрес: ${data.ws_url}<br>
+                            👥 Игроков: ${data.players_count}/${data.max_players}<br>
+                            🎮 Статус: ${data.status}
+                        `;
+                        document.getElementById('server-address').value = data.ws_url;
+                        document.getElementById('players-online').innerHTML = `👥 Игроков онлайн: ${data.players_count}`;
+                        return;
                     }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('✅ Приложение успешно скрыто! Используйте /start в боте для возврата.');
-                    await getStatus();
-                } else {
-                    alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                } catch(e) {
+                    // Пропускаем
                 }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('❌ Ошибка подключения к серверу');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
             }
+            
+            serverInfo.innerHTML = `
+                ❌ Сервер не найден<br>
+                💡 Запустите server.py на вашем компьютере<br>
+                📡 Адрес сервера: ws://${localIp}:8765
+            `;
         }
         
-        document.getElementById('removeBtn').addEventListener('click', removeApp);
+        // Подключение к игре
+        document.getElementById('connect-btn').addEventListener('click', () => {
+            const serverUrl = document.getElementById('server-address').value;
+            const playerName = document.getElementById('player-name').value.trim() || `Гость_${Math.floor(Math.random() * 1000)}`;
+            
+            // Сохраняем данные в localStorage для игры
+            localStorage.setItem('serverUrl', serverUrl);
+            localStorage.setItem('playerName', playerName);
+            
+            // Перенаправляем на страницу игры
+            window.location.href = 'game.html';
+        });
         
-        // Проверяем статус при загрузке и каждые 5 секунд
-        getStatus();
-        setInterval(getStatus, 5000);
+        // Запускаем поиск сервера
+        findServer();
+        
+        // Обновляем каждые 5 секунд
+        setInterval(findServer, 5000);
     </script>
 </body>
 </html>
